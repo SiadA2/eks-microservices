@@ -54,3 +54,26 @@ releases:
       - ingress-nginx/ingress-nginx
       - external-dns/external-dns
       - cert-manager/cert-manager
+
+  # - name: prometheus
+  #   namespace: prometheus
+  #   chart: prometheus/prometheus
+  #   version: "27.44.1"
+  #   values:
+  #     - helm-values/prometheus.yaml
+  #   needs: 
+  #     - ingress-nginx/ingress-nginx
+  #     - external-dns/external-dns
+  #     - cert-manager/cert-manager
+  #   atomic: false
+
+  # - name: grafana
+  #   namespace: grafana
+  #   chart: grafana/grafana
+  #   version: "10.1.4"
+  #   values:
+  #     - helm-values/grafana.yaml
+  #   needs: 
+  #     - ingress-nginx/ingress-nginx
+  #     - external-dns/external-dns
+  #     - cert-manager/cert-manager
