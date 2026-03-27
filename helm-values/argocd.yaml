@@ -1,0 +1,20 @@
+global:
+  domain: argocd.lab.nginxsiad.com
+  
+server:
+  extraArgs:
+    - --insecure
+  service:
+    type: ClusterIP
+  ingress: 
+    enabled: true
+    ingressClassName: 'nginx'
+    annotations:
+      nginx.org/hosts: false
+      cert-manager.io/cluster-issuer: issuer
+    hosts:
+    - argocd.cluster.siadadam.co.uk
+    tls:
+    - secretName: ""
+      hosts:
+      - argocd.cluster.siadadam.co.uk
