@@ -1,0 +1,9 @@
+provider: aws
+
+env:
+- name: AWS_DEFAULT_REGION
+  value: eu-west-2
+
+
+domainFilters:
+- cluster.siadadam.co.uk
