@@ -3,7 +3,7 @@ FROM golang:alpine@sha256:683792682c6aa8b6d43eb69ba09aa3bb64bf0e8ddcdbf4bc6ec326
 
 WORKDIR /app
 
-COPY go.mod go.sum ./
+COPY go.mod ./
 RUN go mod download
 
 COPY main.go ./
