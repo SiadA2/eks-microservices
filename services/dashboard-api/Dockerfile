@@ -7,13 +7,14 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY main.go ./
+COPY static/ ./static/
 RUN CGO_ENABLED=0 GOOS=linux go build -o dashboard-api .
 
 # Runtime
 FROM scratch
 
 WORKDIR /app
-COPY --from=builder /app/dasboard-api ./
+COPY --from=builder /app/dashboard-api ./
 
 EXPOSE 8080
 CMD ["./dashboard-api"]
