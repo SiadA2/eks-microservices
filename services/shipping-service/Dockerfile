@@ -1,5 +1,5 @@
 #Builder
-FROM golang:alpine@sha256:8e52afc2f64fd75eebd4f74e198a46f1786c8648a5bf92527f5fee64771b696f AS builder
+FROM golang:alpine@sha256:683792682c6aa8b6d43eb69ba09aa3bb64bf0e8ddcdbf4bc6ec3260bd312cb93 AS builder
 
 WORKDIR /app
 
