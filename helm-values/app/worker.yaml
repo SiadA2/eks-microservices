@@ -1,0 +1,22 @@
+replicaCount: 1
+
+image:
+  repository: "338235305910.dkr.ecr.eu-west-2.amazonaws.com/dev-worker"
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  enabled: false
+
+containerPort: 8090
+
+env:
+  SQS_QUEUE_URL: placeholder-order-events
+  ORDER_SERVICE_URL: http://order-service:8081
+  INVENTORY_SERVICE_URL: http://inventory-service:8082
+  PAYMENT_SERVICE_URL: http://payment-service:8083
+  NOTIFICATION_SERVICE_URL: http://notification-service:8084
+  SHIPPING_SERVICE_URL: http://shipping-service:8085
+  HEALTH_PORT: "8090"
+
+resources: {}

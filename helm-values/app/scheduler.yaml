@@ -1,0 +1,17 @@
+replicaCount: 1
+
+image:
+  repository: "338235305910.dkr.ecr.eu-west-2.amazonaws.com/dev-scheduler"
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  enabled: false
+
+containerPort: 8091
+
+env:
+  DATABASE_URL: postgres://app:localdev@postgres:5432/orders?sslmode=disable
+  HEALTH_PORT: "8091"
+
+resources: {}

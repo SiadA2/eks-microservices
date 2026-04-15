@@ -1,0 +1,33 @@
+replicaCount: 1
+
+image:
+  repository: "338235305910.dkr.ecr.eu-west-2.amazonaws.com/dev-api-gateway"
+  tag: "2026-04-15-root-health-fix"
+  pullPolicy: IfNotPresent
+
+service:
+  enabled: true
+  type: ClusterIP
+  port: 8080
+
+containerPort: 8080
+
+env:
+  REDIS_URL: redis://redis-master:6379
+  JWT_SECRET: change-me
+  ORDER_SERVICE_URL: http://order-service:8081
+  INVENTORY_SERVICE_URL: http://inventory-service:8082
+  PAYMENT_SERVICE_URL: http://payment-service:8083
+  NOTIFICATION_SERVICE_URL: http://notification-service:8084
+  SHIPPING_SERVICE_URL: http://shipping-service:8085
+  DASHBOARD_SERVICE_URL: http://dashboard-api:8086
+
+resources: {}
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - paths:
+        - path: /
+          pathType: Prefix

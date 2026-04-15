@@ -3,6 +3,11 @@ variable "vpc_cidr" {
   type        = string
 }
 
+variable "cluster_name" {
+  description = "EKS cluster name used for subnet discovery tags"
+  type        = string
+}
+
 variable "azs" {
   description = "Availability zones"
   type        = list(string)

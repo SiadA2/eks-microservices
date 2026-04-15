@@ -1,0 +1,18 @@
+replicaCount: 1
+
+image:
+  repository: "338235305910.dkr.ecr.eu-west-2.amazonaws.com/dev-notification-service"
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  enabled: true
+  type: ClusterIP
+  port: 8084
+
+containerPort: 8084
+
+env:
+  DATABASE_URL: postgres://app:localdev@postgres:5432/orders?sslmode=disable
+
+resources: {}
