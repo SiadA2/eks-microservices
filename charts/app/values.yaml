@@ -1,0 +1,34 @@
+replicaCount: 1
+
+image:
+  repository: "example.invalid/app"
+  tag: latest
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+service:
+  enabled: true
+  type: ClusterIP
+  port: 80
+
+containerPort: 8080
+
+env: {}
+
+resources: {}
+
+probes:
+  enabled: true
+  path: /healthz
+  port: null
+  startupInitialDelaySeconds: 0
+  startupPeriodSeconds: 5
+  startupFailureThreshold: 30
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts: []
+  tls: []

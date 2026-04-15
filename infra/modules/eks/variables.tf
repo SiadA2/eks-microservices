@@ -41,7 +41,13 @@ variable "desired_size" {
   type = number
 }
 
+variable "load_balancer_security_group_id" {
+  description = "Security group allowed to reach EKS nodes"
+  type        = string
+  default     = null
+}
+
 variable "tags" {
-  type = map(string)
+  type    = map(string)
   default = {}
 }

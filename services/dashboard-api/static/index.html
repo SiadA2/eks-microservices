@@ -181,20 +181,33 @@
     <script>
         const API = window.location.origin;
         let token = localStorage.getItem('token') || '';
+        let loginPromise = null;
 
-        // Auto-login on load
-        if (!token) {
-            fetch(API + '/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: 'admin@platform.local', password: 'admin' })
-            })
-            .then(r => r.json())
-            .then(d => { token = d.token; localStorage.setItem('token', token); })
-            .catch(() => {});
+        function ensureToken() {
+            if (token) return Promise.resolve(token);
+            if (!loginPromise) {
+                loginPromise = fetch(API + '/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: 'admin@platform.local', password: 'admin' })
+                })
+                .then(r => r.json())
+                .then(d => {
+                    if (!d.token) throw new Error('missing token');
+                    token = d.token;
+                    localStorage.setItem('token', token);
+                    return token;
+                })
+                .catch(err => {
+                    loginPromise = null;
+                    throw err;
+                });
+            }
+            return loginPromise;
         }
 
-        function headers() {
+        async function headers() {
+            await ensureToken();
             return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token };
         }
 
@@ -243,7 +256,7 @@
         // --- Orders ---
         async function loadOrders() {
             try {
-                const r = await fetch(API + '/api/orders/', { headers: headers() });
+                const r = await fetch(API + '/api/orders/', { headers: await headers() });
                 const orders = await r.json();
                 const tbody = document.getElementById('orders-table');
                 if (!orders || !orders.length) { tbody.innerHTML = '<tr><td colspan="7" style="color:#8b949e">No orders yet</td></tr>'; return; }
@@ -271,7 +284,7 @@
 
             try {
                 const r = await fetch(API + '/api/orders/', {
-                    method: 'POST', headers: headers(),
+                    method: 'POST', headers: await headers(),
                     body: JSON.stringify({ items: [{ product_id: product, quantity: qty, price: price }] })
                 });
                 const d = await r.json();
@@ -283,7 +296,7 @@
         async function advanceOrder(id, status) {
             try {
                 const r = await fetch(API + '/api/orders/status', {
-                    method: 'PUT', headers: headers(),
+                    method: 'PUT', headers: await headers(),
                     body: JSON.stringify({ order_id: id, new_status: status })
                 });
                 if (r.ok) { toast(`Order #${id} -> ${status}`); refreshAll(); }
@@ -294,7 +307,7 @@
         // --- Inventory ---
         async function loadInventory() {
             try {
-                const r = await fetch(API + '/api/inventory/products', { headers: headers() });
+                const r = await fetch(API + '/api/inventory/products', { headers: await headers() });
                 const products = await r.json();
                 const tbody = document.getElementById('inventory-table');
                 if (!products || !products.length) { tbody.innerHTML = '<tr><td colspan="7" style="color:#8b949e">No products yet</td></tr>'; return; }
@@ -317,7 +330,7 @@
             if (!data.id || !data.name) { toast('Fill in product details', true); return; }
             try {
                 const r = await fetch(API + '/api/inventory/products', {
-                    method: 'POST', headers: headers(),
+                    method: 'POST', headers: await headers(),
                     body: JSON.stringify(data)
                 });
                 if (r.ok) { toast('Product added'); refreshAll(); }
@@ -340,7 +353,7 @@
             } catch(e) {}
 
             try {
-                const r = await fetch(API + '/api/payments/ledger', { headers: headers() });
+                const r = await fetch(API + '/api/payments/ledger', { headers: await headers() });
                 const entries = await r.json();
                 const tbody = document.getElementById('ledger-table');
                 if (!entries || !entries.length) { tbody.innerHTML = '<tr><td colspan="6" style="color:#8b949e">No entries</td></tr>'; return; }
@@ -353,7 +366,7 @@
         // --- Shipping ---
         async function loadShipping() {
             try {
-                const r = await fetch(API + '/api/shipping/shipments', { headers: headers() });
+                const r = await fetch(API + '/api/shipping/shipments', { headers: await headers() });
                 const shipments = await r.json();
                 const tbody = document.getElementById('shipping-table');
                 if (!shipments || !shipments.length) { tbody.innerHTML = '<tr><td colspan="6" style="color:#8b949e">No shipments</td></tr>'; return; }
@@ -377,7 +390,7 @@
         // --- Notifications ---
         async function loadNotifications() {
             try {
-                const r = await fetch(API + '/api/notifications/history', { headers: headers() });
+                const r = await fetch(API + '/api/notifications/history', { headers: await headers() });
                 const notifs = await r.json();
                 const tbody = document.getElementById('notif-table');
                 if (!notifs || !notifs.length) { tbody.innerHTML = '<tr><td colspan="6" style="color:#8b949e">No notifications</td></tr>'; return; }
@@ -410,7 +423,7 @@
                     const d = await r.json();
                     const el = document.getElementById('svc-' + s.name);
                     const dot = el.querySelector('.dot');
-                    dot.className = d.status === 'ok' ? 'dot dot-green' : 'dot dot-red';
+                    dot.className = ['ok', 'healthy'].includes(d.status) ? 'dot dot-green' : 'dot dot-red';
                 } catch(e) {
                     const el = document.getElementById('svc-' + s.name);
                     if (el) el.querySelector('.dot').className = 'dot dot-red';
@@ -419,8 +432,16 @@
         }
 
         // --- Refresh ---
-        function refreshAll() {
+        async function refreshAll() {
             loadStats();
+            try {
+                await ensureToken();
+            } catch (e) {
+                console.error('Auth bootstrap error', e);
+                toast('Automatic login failed', true);
+                loadServices();
+                return;
+            }
             loadOrders();
             loadInventory();
             loadPayments();
@@ -431,7 +452,7 @@
 
         // Auto-refresh every 10s
         refreshAll();
-        setInterval(refreshAll, 10000);
+        setInterval(() => { refreshAll(); }, 10000);
     </script>
 </body>
 </html>

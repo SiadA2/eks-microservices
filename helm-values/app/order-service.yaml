@@ -1,0 +1,19 @@
+replicaCount: 1
+
+image:
+  repository: "338235305910.dkr.ecr.eu-west-2.amazonaws.com/dev-order-service"
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  enabled: true
+  type: ClusterIP
+  port: 8081
+
+containerPort: 8081
+
+env:
+  DATABASE_URL: postgres://app:localdev@postgres:5432/orders?sslmode=disable
+  SQS_QUEUE_URL: ""
+
+resources: {}

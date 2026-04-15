@@ -1,0 +1,18 @@
+replicaCount: 1
+
+image:
+  repository: "338235305910.dkr.ecr.eu-west-2.amazonaws.com/dev-dashboard-api"
+  tag: "2026-04-15-dashboard-auth-fix"
+  pullPolicy: IfNotPresent
+
+service:
+  enabled: true
+  type: ClusterIP
+  port: 8086
+
+containerPort: 8086
+
+env:
+  DATABASE_URL: postgres://app:localdev@postgres:5432/orders?sslmode=disable
+
+resources: {}

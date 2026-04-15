@@ -23,20 +23,28 @@ var (
 	redisClient *redis.Client
 	ctx         = context.Background()
 	jwtSecret   []byte
-	routes      map[string]string
+	routes      []route
 )
+
+type route struct {
+	prefix      string
+	targetURL   string
+	stripPrefix bool
+}
 
 func main() {
 	jwtSecret = []byte(getEnv("JWT_SECRET", "change-me-in-production"))
 
 	// Service routes - internal service URLs
-	routes = map[string]string{
-		"/api/orders":        getEnv("ORDER_SERVICE_URL", "http://order-service:8081"),
-		"/api/inventory":     getEnv("INVENTORY_SERVICE_URL", "http://inventory-service:8082"),
-		"/api/payments":      getEnv("PAYMENT_SERVICE_URL", "http://payment-service:8083"),
-		"/api/notifications": getEnv("NOTIFICATION_SERVICE_URL", "http://notification-service:8084"),
-		"/api/shipping":      getEnv("SHIPPING_SERVICE_URL", "http://shipping-service:8085"),
-		"/api/dashboard":     getEnv("DASHBOARD_SERVICE_URL", "http://dashboard-api:8086"),
+	dashboardURL := getEnv("DASHBOARD_SERVICE_URL", "http://dashboard-api:8086")
+	routes = []route{
+		{prefix: "/api/orders", targetURL: getEnv("ORDER_SERVICE_URL", "http://order-service:8081"), stripPrefix: true},
+		{prefix: "/api/inventory", targetURL: getEnv("INVENTORY_SERVICE_URL", "http://inventory-service:8082"), stripPrefix: true},
+		{prefix: "/api/payments", targetURL: getEnv("PAYMENT_SERVICE_URL", "http://payment-service:8083"), stripPrefix: true},
+		{prefix: "/api/notifications", targetURL: getEnv("NOTIFICATION_SERVICE_URL", "http://notification-service:8084"), stripPrefix: true},
+		{prefix: "/api/shipping", targetURL: getEnv("SHIPPING_SERVICE_URL", "http://shipping-service:8085"), stripPrefix: true},
+		{prefix: "/api/dashboard", targetURL: dashboardURL, stripPrefix: true},
+		{prefix: "/dashboard", targetURL: dashboardURL, stripPrefix: false},
 	}
 
 	// Redis for rate limiting
@@ -79,7 +87,7 @@ func main() {
 
 func handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "ok", "service": "api-gateway"})
+	json.NewEncoder(w).Encode(map[string]string{"status": "healthy", "service": "api-gateway"})
 }
 
 func handleLogin(w http.ResponseWriter, r *http.Request) {
@@ -158,6 +166,11 @@ func handleRegister(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleProxy(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path == "/" {
+		serveProxy(w, r, getEnv("DASHBOARD_SERVICE_URL", "http://dashboard-api:8086"), "/", false)
+		return
+	}
+
 	// Rate limiting
 	if redisClient != nil {
 		ip := r.RemoteAddr
@@ -188,29 +201,17 @@ func handleProxy(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Find matching route
-	for prefix, targetURL := range routes {
-		if strings.HasPrefix(r.URL.Path, prefix) {
-			target, err := url.Parse(targetURL)
-			if err != nil {
-				httpError(w, "bad upstream config", http.StatusInternalServerError)
-				return
+	for _, route := range routes {
+		if strings.HasPrefix(r.URL.Path, route.prefix) {
+			path := r.URL.Path
+			if route.stripPrefix {
+				path = strings.TrimPrefix(path, route.prefix)
+				if path == "" {
+					path = "/"
+				}
 			}
 
-			proxy := httputil.NewSingleHostReverseProxy(target)
-			proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
-				log.Printf("Proxy error: %v", err)
-				httpError(w, "service unavailable", http.StatusBadGateway)
-			}
-
-			// Strip the route prefix for downstream
-			r.URL.Path = strings.TrimPrefix(r.URL.Path, prefix)
-			if r.URL.Path == "" {
-				r.URL.Path = "/"
-			}
-			r.Header.Set("X-Forwarded-For", r.RemoteAddr)
-			r.Header.Set("X-Request-ID", fmt.Sprintf("%d", time.Now().UnixNano()))
-
-			proxy.ServeHTTP(w, r)
+			serveProxy(w, r, route.targetURL, path, true)
 			return
 		}
 	}
@@ -219,9 +220,15 @@ func handleProxy(w http.ResponseWriter, r *http.Request) {
 }
 
 func isPublicPath(path string) bool {
-	public := []string{"/healthz", "/auth/", "/api/shipping/webhook"}
+	public := []string{"/", "/healthz", "/auth/", "/dashboard", "/api/shipping/webhook"}
 	for _, p := range public {
-		if strings.HasPrefix(path, p) {
+		if strings.HasSuffix(p, "/") {
+			if strings.HasPrefix(path, p) {
+				return true
+			}
+			continue
+		}
+		if path == p || strings.HasPrefix(path, p+"/") {
 			return true
 		}
 	}
@@ -230,6 +237,30 @@ func isPublicPath(path string) bool {
 		return true
 	}
 	return false
+}
+
+func serveProxy(w http.ResponseWriter, r *http.Request, targetURL, upstreamPath string, setProxyHeaders bool) {
+	target, err := url.Parse(targetURL)
+	if err != nil {
+		httpError(w, "bad upstream config", http.StatusInternalServerError)
+		return
+	}
+
+	proxy := httputil.NewSingleHostReverseProxy(target)
+	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
+		log.Printf("Proxy error: %v", err)
+		httpError(w, "service unavailable", http.StatusBadGateway)
+	}
+
+	req := r.Clone(r.Context())
+	req.URL.Path = upstreamPath
+	req.URL.RawPath = upstreamPath
+	if setProxyHeaders {
+		req.Header.Set("X-Forwarded-For", r.RemoteAddr)
+		req.Header.Set("X-Request-ID", fmt.Sprintf("%d", time.Now().UnixNano()))
+	}
+
+	proxy.ServeHTTP(w, req)
 }
 
 func validateToken(r *http.Request) (jwt.MapClaims, error) {
@@ -285,5 +316,3 @@ func gracefulShutdown(server *http.Server) {
 		server.Shutdown(ctx)
 	})
 }
-
-

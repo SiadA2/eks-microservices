@@ -13,13 +13,24 @@ module "eks" {
 
   enable_cluster_creator_admin_permissions = true
 
+  node_security_group_additional_rules = {
+    ingress_from_load_balancer = {
+      description              = "Allow ingress traffic from the load balancer security group"
+      protocol                 = "tcp"
+      from_port                = 30000
+      to_port                  = 32767
+      type                     = "ingress"
+      source_security_group_id = var.load_balancer_security_group_id
+    }
+  }
+
   addons = {
-    coredns                = {}
+    coredns = {}
     eks-pod-identity-agent = {
       before_compute = true
     }
-    kube-proxy             = {}
-    vpc-cni                = {
+    kube-proxy = {}
+    vpc-cni = {
       before_compute = true
     }
   }
@@ -28,6 +39,7 @@ module "eks" {
     default = {
       ami_type       = "AL2023_x86_64_STANDARD"
       instance_types = var.instance_types
+      labels         = {}
 
       min_size     = var.min_size
       max_size     = var.max_size

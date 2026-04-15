@@ -13,12 +13,12 @@ repositories:
     url: https://kubernetes-sigs.github.io/external-dns/
   - name: argocd
     url: https://argoproj.github.io/argo-helm
+  - name: bitnami
+    url: https://charts.bitnami.com/bitnami
   - name: prometheus
     url: https://prometheus-community.github.io/helm-charts
   - name: grafana
     url: https://grafana.github.io/helm-charts
-  - name: postgres
-    url: https://charts.bitnami.com/bitnami
 
 
 releases:
@@ -52,43 +52,96 @@ releases:
     chart: argocd/argo-cd
     version: "9.0.5" 
     values:
-      - helm-values/argocd-values.yaml
+      - helm-values/argocd.yaml
     needs: 
       - ingress-nginx/ingress-nginx
       - external-dns/external-dns
       - cert-manager/cert-manager
 
-  # - name: prometheus
-  #   namespace: prometheus
-  #   chart: prometheus/prometheus
-  #   version: "27.44.1"
-  #   values:
-  #     - helm-values/prometheus.yaml
-  #   needs: 
-  #     - ingress-nginx/ingress-nginx
-  #     - external-dns/external-dns
-  #     - cert-manager/cert-manager
-  #   atomic: false
+  - name: postgres
+    namespace: app
+    chart: bitnami/postgresql
+    version: "16.7.27"
+    values:
+      - helm-values/postgres.yaml
 
-  # - name: grafana
-  #   namespace: grafana
-  #   chart: grafana/grafana
-  #   version: "10.1.4"
-  #   values:
-  #     - helm-values/grafana.yaml
-  #   needs: 
-  #     - ingress-nginx/ingress-nginx
-  #     - external-dns/external-dns
-  #     - cert-manager/cert-manager
+  - name: redis
+    namespace: app
+    chart: bitnami/redis
+    version: "20.11.3"
+    values:
+      - helm-values/redis.yaml
 
+  - name: api-gateway
+    namespace: app
+    chart: ./charts/app
+    values:
+      - helm-values/app/api-gateway.yaml
+    needs:
+      - app/redis
 
-  # - name: postgres
-  #   namespace: postgres
-  #   chart: postgres/postgres
-  #   version: "10.1.4"
-  #   values:
-  #     - helm-values/postgres.yaml
-  #   needs: 
-  #     - ingress-nginx/ingress-nginx
-  #     - external-dns/external-dns
-  #     - cert-manager/cert-manager
+  - name: dashboard-api
+    namespace: app
+    chart: ./charts/app
+    values:
+      - helm-values/app/dashboard-api.yaml
+    needs:
+      - app/postgres
+
+  - name: inventory-service
+    namespace: app
+    chart: ./charts/app
+    values:
+      - helm-values/app/inventory-service.yaml
+    needs:
+      - app/postgres
+
+  - name: notification-service
+    namespace: app
+    chart: ./charts/app
+    values:
+      - helm-values/app/notification-service.yaml
+    needs:
+      - app/postgres
+
+  - name: order-service
+    namespace: app
+    chart: ./charts/app
+    values:
+      - helm-values/app/order-service.yaml
+    needs:
+      - app/postgres
+
+  - name: payment-service
+    namespace: app
+    chart: ./charts/app
+    values:
+      - helm-values/app/payment-service.yaml
+    needs:
+      - app/postgres
+
+  - name: scheduler
+    namespace: app
+    chart: ./charts/app
+    values:
+      - helm-values/app/scheduler.yaml
+    needs:
+      - app/postgres
+
+  - name: shipping-service
+    namespace: app
+    chart: ./charts/app
+    values:
+      - helm-values/app/shipping-service.yaml
+    needs:
+      - app/postgres
+
+  - name: worker
+    namespace: app
+    chart: ./charts/app
+    values:
+      - helm-values/app/worker.yaml
+    needs:
+      - app/order-service
+      - app/payment-service
+      - app/shipping-service

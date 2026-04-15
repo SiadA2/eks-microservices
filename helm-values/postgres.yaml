@@ -1,0 +1,15 @@
+fullnameOverride: postgres
+
+auth:
+  username: app
+  password: localdev
+  database: orders
+
+primary:
+  persistence:
+    enabled: false
+  service:
+    ports:
+      postgresql: 5432
+
+resources: {}

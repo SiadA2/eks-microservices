@@ -1,0 +1,10 @@
+controller:
+  healthCheckPath: /nginx-healthz
+  livenessProbe:
+    httpGet:
+      path: /nginx-healthz
+  readinessProbe:
+    httpGet:
+      path: /nginx-healthz
+  service:
+    type: LoadBalancer

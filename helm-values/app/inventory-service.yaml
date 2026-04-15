@@ -1,0 +1,18 @@
+replicaCount: 1
+
+image:
+  repository: "338235305910.dkr.ecr.eu-west-2.amazonaws.com/dev-inventory-service"
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  enabled: true
+  type: ClusterIP
+  port: 8082
+
+containerPort: 8082
+
+env:
+  DATABASE_URL: postgres://app:localdev@postgres:5432/orders?sslmode=disable
+
+resources: {}
