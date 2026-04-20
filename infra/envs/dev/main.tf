@@ -13,18 +13,20 @@ locals {
 }
 
 module "vpc" {
-  source = "../../modules/vpc"
+  source = "git::https://github.com/SiadA2/terraform-modules-aws.git//vpc?ref=main"
 
   cluster_name         = var.cluster_name
   vpc_cidr             = var.vpc_cidr
+  aws_region           = var.aws_region
   azs                  = var.azs
+  enable_nat_gateway   = true
   public_subnet_cidrs  = var.public_subnet_cidrs
   private_subnet_cidrs = var.private_subnet_cidrs
   tags                 = local.tags
 }
 
 module "eks" {
-  source = "../../modules/eks"
+  source = "git::https://github.com/SiadA2/terraform-modules-aws.git//eks?ref=main"
 
   cluster_name                    = var.cluster_name
   kubernetes_version              = var.kubernetes_version
@@ -41,7 +43,7 @@ module "eks" {
 
 module "ecr" {
   for_each = local.service_names
-  source   = "../../modules/ecr"
+  source   = "git::https://github.com/SiadA2/terraform-modules-aws.git//ecr?ref=main"
 
   repo_name = "${var.environment}-${each.key}"
 }
