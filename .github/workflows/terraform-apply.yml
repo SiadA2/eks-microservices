@@ -1,0 +1,48 @@
+name: Terraform Apply
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_apply:
+        description: "Type apply to approve Terraform changes"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'eu-west-2' }}
+  TF_ENV_DIR: ${{ vars.TF_ENV_DIR || 'infra/envs/dev' }}
+  TF_VARS_FILE: ${{ vars.TF_VARS_FILE || 'dev.tfvars' }}
+  TF_IN_AUTOMATION: "true"
+
+jobs:
+  apply:
+    name: Terraform Apply
+    if: inputs.confirm_apply == 'apply'
+    runs-on: ubuntu-latest
+    environment: dev
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Configure AWS credentials
+        uses: ./.github/actions/aws-login
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd
+
+      - name: Terraform init
+        run: terraform -chdir="${TF_ENV_DIR}" init -input=false
+
+      - name: Terraform plan
+        run: terraform -chdir="${TF_ENV_DIR}" plan -input=false -var-file="${TF_VARS_FILE}" -out=tfplan
+
+      - name: Terraform apply
+        run: terraform -chdir="${TF_ENV_DIR}" apply -input=false -auto-approve tfplan

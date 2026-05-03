@@ -1,0 +1,70 @@
+name: Terraform Plan
+
+on:
+  pull_request:
+    paths:
+      - "infra/**"
+      - ".github/actions/aws-login/**"
+      - ".github/workflows/terraform-plan.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "infra/**"
+      - ".github/actions/aws-login/**"
+      - ".github/workflows/terraform-plan.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'eu-west-2' }}
+  TF_ENV_DIR: ${{ vars.TF_ENV_DIR || 'infra/envs/dev' }}
+  TF_VARS_FILE: ${{ vars.TF_VARS_FILE || 'dev.tfvars' }}
+  TF_IN_AUTOMATION: "true"
+
+jobs:
+  plan:
+    name: Terraform Plan
+    runs-on: ubuntu-latest
+    environment: dev
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Configure AWS credentials
+        uses: ./.github/actions/aws-login
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd
+
+      - name: Terraform format check
+        run: terraform fmt -check -recursive infra
+
+      - name: Terraform init
+        run: terraform -chdir="${TF_ENV_DIR}" init -input=false
+
+      - name: Terraform validate
+        run: terraform -chdir="${TF_ENV_DIR}" validate
+
+      - name: Install Checkov
+        run: python -m pip install --upgrade pip checkov
+
+      - name: Checkov Terraform scan
+        run: checkov -d infra --framework terraform --quiet
+
+      - name: Terraform plan
+        run: terraform -chdir="${TF_ENV_DIR}" plan -input=false -var-file="${TF_VARS_FILE}" -out=tfplan
+
+      - name: Upload Terraform plan
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: terraform-plan-${{ github.run_id }}
+          path: ${{ env.TF_ENV_DIR }}/tfplan
+          retention-days: 7
