@@ -1,0 +1,40 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: dev-microservices
+  namespace: argocd
+spec:
+  generators:
+    - list:
+        elements:
+          - name: api-gateway
+          - name: dashboard-api
+          - name: inventory-service
+          - name: notification-service
+          - name: order-service
+          - name: payment-service
+          - name: scheduler
+          - name: shipping-service
+          - name: worker
+  template:
+    metadata:
+      name: "dev-{{name}}"
+    spec:
+      project: dev
+      source:
+        repoURL: https://github.com/SiadA2/eks-microservices.git
+        targetRevision: main
+        path: charts/app
+        helm:
+          releaseName: "{{name}}"
+          valueFiles:
+            - "../../helm-values/app/{{name}}.yaml"
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: app
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
