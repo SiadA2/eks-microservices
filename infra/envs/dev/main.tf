@@ -47,3 +47,11 @@ module "ecr" {
 
   repo_name = "${var.environment}-${each.key}"
 }
+
+module "route53" {
+  source = "git::https://github.com/SiadA2/terraform-modules-aws.git//route-53?ref=main"
+
+  domain_name    = var.domain_name
+  hosted_zone_id = var.hosted_zone_id
+}
+

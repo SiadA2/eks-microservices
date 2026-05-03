@@ -72,3 +72,13 @@ variable "desired_size" {
   description = "Desired size of the EKS managed node group"
   type        = number
 }
+
+variable "domain_name" {
+  description = "Domain name for the Route 53 hosted zone and ACM certificate"
+  type        = string
+}
+
+variable "hosted_zone_id" {
+  description = "ID of the Route 53 hosted zone"
+  type        = string
+}
