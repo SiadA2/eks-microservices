@@ -1,0 +1,136 @@
+name: Kubernetes and Argo CD
+
+on:
+  pull_request:
+    paths:
+      - "argocd/**"
+      - "charts/**"
+      - "helm-values/**"
+      - "helmfile.yaml"
+  push:
+    branches:
+      - main
+    paths:
+      - "argocd/**"
+      - "charts/**"
+      - "helm-values/**"
+      - "helmfile.yaml"
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'eu-west-2' }}
+  CLUSTER_NAME: ${{ vars.CLUSTER_NAME || 'dev-cluster' }}
+
+jobs:
+  validate:
+    name: Dry Run Kubernetes
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - api-gateway
+          - dashboard-api
+          - inventory-service
+          - notification-service
+          - order-service
+          - payment-service
+          - scheduler
+          - shipping-service
+          - worker
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@776406bce94f63e41d621b960d78ee25c8b76ede
+
+      - name: Setup Helm
+        uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4
+
+      - name: Setup Helmfile
+        uses: mamezou-tech/setup-helmfile@c04e83ec7650bf2ec910864bcb409479cf56d8e6
+
+      - name: Install Argo CD CLI
+        run: |
+          curl -sSL -o argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          chmod +x argocd
+          sudo mv argocd /usr/local/bin/argocd
+
+      - name: Install Checkov
+        run: python -m pip install --upgrade pip checkov
+
+      - name: Helm lint
+        run: helm lint charts/app -f "helm-values/app/${{ matrix.service }}.yaml"
+
+      - name: Helm template dry run
+        run: helm template "${{ matrix.service }}" charts/app -f "helm-values/app/${{ matrix.service }}.yaml" --namespace app
+
+      - name: Argo CD manifests client dry run
+        run: kubectl apply --dry-run=client --validate=false -f argocd/projects -f argocd/applications
+
+      - name: Checkov Kubernetes scan
+        run: checkov -d argocd --framework kubernetes --quiet
+
+  deploy:
+    name: Install Dependencies and Argo CD
+    runs-on: ubuntu-latest
+    environment: dev
+    needs: validate
+    if: github.event_name != 'pull_request'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Configure AWS credentials
+        uses: ./.github/actions/aws-login
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@776406bce94f63e41d621b960d78ee25c8b76ede
+
+      - name: Setup Helm
+        uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4
+
+      - name: Setup Helmfile
+        uses: mamezou-tech/setup-helmfile@c04e83ec7650bf2ec910864bcb409479cf56d8e6
+
+      - name: Install Argo CD CLI
+        run: |
+          curl -sSL -o argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          chmod +x argocd
+          sudo mv argocd /usr/local/bin/argocd
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --region "${AWS_REGION}" --name "${CLUSTER_NAME}"
+
+      - name: Helmfile platform dry run
+        run: helmfile -l tier=platform template
+
+      - name: Helmfile data dry run
+        run: helmfile -l tier=data template
+
+      - name: Install ingress, cert-manager, external-dns, and Argo CD
+        run: helmfile -l tier=platform sync
+
+      - name: Install data dependencies
+        run: helmfile -l tier=data sync
+
+      - name: Argo CD manifests server dry run
+        run: kubectl apply --dry-run=server -f argocd/projects -f argocd/applications
+
+      - name: Apply Argo CD project and applications
+        run: kubectl apply -f argocd/projects -f argocd/applications
+
+      - name: Get services
+        run: kubectl get svc -A
+
+      - name: Get Argo CD applications
+        run: kubectl get applications -n argocd
