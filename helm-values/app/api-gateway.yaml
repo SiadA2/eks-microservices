@@ -27,7 +27,16 @@ resources: {}
 ingress:
   enabled: true
   className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: issuer
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
   hosts:
-    - paths:
+    - host: 5hort.site
+      paths:
         - path: /
           pathType: Prefix
+  tls:
+    - secretName: api-gateway-tls
+      hosts:
+        - 5hort.site

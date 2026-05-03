@@ -55,3 +55,25 @@ module "route53" {
   hosted_zone_id = var.hosted_zone_id
 }
 
+module "iam" {
+  source = "../../modules/iam"
+
+  create_role         = false
+  create_route53_irsa = true
+
+  project_name = var.project_name
+  environment  = var.environment
+  cluster_name = var.cluster_name
+
+  domain_name    = var.domain_name
+  hosted_zone_id = var.hosted_zone_id
+
+  route53_irsa_subjects = {
+    cert_manager = "system:serviceaccount:cert-manager:cert-manager"
+    external_dns = "system:serviceaccount:external-dns:external-dns"
+  }
+
+  tags = local.tags
+
+  depends_on = [module.eks]
+}

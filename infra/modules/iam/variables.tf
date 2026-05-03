@@ -1,6 +1,13 @@
 variable "name" {
   description = "IAM role name"
   type        = string
+  default     = null
+}
+
+variable "create_role" {
+  description = "Whether to create the general-purpose IAM role"
+  type        = bool
+  default     = true
 }
 
 variable "description" {
@@ -49,4 +56,49 @@ variable "tags" {
   description = "Tags to apply to IAM resources"
   type        = map(string)
   default     = {}
+}
+
+variable "create_route53_irsa" {
+  description = "Whether to create Route 53 IRSA roles for Kubernetes service accounts"
+  type        = bool
+  default     = false
+}
+
+variable "project_name" {
+  description = "Project name used in Route 53 IRSA resource names"
+  type        = string
+  default     = null
+}
+
+variable "environment" {
+  description = "Environment name used in Route 53 IRSA resource names"
+  type        = string
+  default     = null
+}
+
+variable "cluster_name" {
+  description = "EKS cluster name used to discover the OIDC issuer for IRSA"
+  type        = string
+  default     = null
+}
+
+variable "domain_name" {
+  description = "Domain name for the Route 53 hosted zone"
+  type        = string
+  default     = null
+}
+
+variable "hosted_zone_id" {
+  description = "ID of the Route 53 hosted zone"
+  type        = string
+  default     = null
+}
+
+variable "route53_irsa_subjects" {
+  description = "Kubernetes service account subjects allowed to assume Route 53 IRSA roles"
+  type        = map(string)
+  default = {
+    cert_manager = "system:serviceaccount:cert-manager:cert-manager"
+    external_dns = "system:serviceaccount:external-dns:external-dns"
+  }
 }

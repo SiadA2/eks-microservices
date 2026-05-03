@@ -1,9 +1,13 @@
 provider: aws
 
+serviceAccount:
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::338235305910:role/dev-eks-microservices-external-dns-route53
+
 env:
 - name: AWS_DEFAULT_REGION
   value: eu-west-2
 
 
 domainFilters:
-- cluster.siadadam.co.uk
+- 5hort.site
