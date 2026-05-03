@@ -58,6 +58,27 @@ releases:
       - external-dns/external-dns
       - cert-manager/cert-manager
 
+  - name: prometheus
+    namespace: monitoring
+    chart: prometheus/prometheus
+    values:
+      - helm-values/prometheus.yaml
+    needs:
+      - ingress-nginx/ingress-nginx
+      - external-dns/external-dns
+      - cert-manager/cert-manager
+
+  - name: grafana
+    namespace: monitoring
+    chart: grafana/grafana
+    values:
+      - helm-values/grafana.yaml
+    needs:
+      - monitoring/prometheus
+      - ingress-nginx/ingress-nginx
+      - external-dns/external-dns
+      - cert-manager/cert-manager
+
   - name: postgres
     namespace: app
     chart: bitnami/postgresql

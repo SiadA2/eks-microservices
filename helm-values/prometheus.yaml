@@ -1,0 +1,34 @@
+server:
+  service:
+    type: ClusterIP
+  persistentVolume:
+    enabled: false
+  resources: {}
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: issuer
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    hosts:
+      - prometheus.5hort.site
+    tls:
+      - secretName: prometheus-tls
+        hosts:
+          - prometheus.5hort.site
+
+alertmanager:
+  enabled: true
+  persistence:
+    enabled: false
+  resources: {}
+
+pushgateway:
+  enabled: false
+
+nodeExporter:
+  enabled: true
+
+kube-state-metrics:
+  enabled: true
