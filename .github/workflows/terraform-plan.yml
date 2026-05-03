@@ -4,16 +4,11 @@ on:
   pull_request:
     paths:
       - "infra/**"
-      - ".github/actions/aws-login/**"
-      - ".github/workflows/terraform-plan.yml"
   push:
     branches:
       - main
     paths:
       - "infra/**"
-      - ".github/actions/aws-login/**"
-      - ".github/workflows/terraform-plan.yml"
-  workflow_dispatch:
 
 permissions:
   contents: read

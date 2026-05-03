@@ -5,17 +5,12 @@ on:
     paths:
       - "services/**"
       - "docker-compose.yml"
-      - ".github/actions/aws-login/**"
-      - ".github/workflows/docker-build-push.yml"
   push:
     branches:
       - main
     paths:
       - "services/**"
       - "docker-compose.yml"
-      - ".github/actions/aws-login/**"
-      - ".github/workflows/docker-build-push.yml"
-  workflow_dispatch:
 
 permissions:
   contents: read

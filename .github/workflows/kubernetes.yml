@@ -7,8 +7,6 @@ on:
       - "charts/**"
       - "helm-values/**"
       - "helmfile.yaml"
-      - ".github/actions/aws-login/**"
-      - ".github/workflows/kubernetes.yml"
   push:
     branches:
       - main
@@ -17,9 +15,6 @@ on:
       - "charts/**"
       - "helm-values/**"
       - "helmfile.yaml"
-      - ".github/actions/aws-login/**"
-      - ".github/workflows/kubernetes.yml"
-  workflow_dispatch:
 
 permissions:
   contents: read

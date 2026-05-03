@@ -1,14 +1,16 @@
 name: Terraform Apply
 
 on:
-  workflow_dispatch:
-    inputs:
-      confirm_apply:
-        description: "Type apply to approve Terraform changes"
-        required: true
-        type: string
+  workflow_run:
+    workflows:
+      - Terraform Plan
+    types:
+      - completed
+    branches:
+      - main
 
 permissions:
+  actions: read
   contents: read
   id-token: write
 
@@ -21,13 +23,15 @@ env:
 jobs:
   apply:
     name: Terraform Apply
-    if: inputs.confirm_apply == 'apply'
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
     runs-on: ubuntu-latest
     environment: dev
 
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Configure AWS credentials
         uses: ./.github/actions/aws-login
