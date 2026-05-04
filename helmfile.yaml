@@ -22,12 +22,28 @@ repositories:
 
 
 releases:
+  - name: tempo
+    namespace: monitoring
+    chart: ./charts/raw-manifests
+    values:
+      - helm-values/tempo.yaml
+
+  - name: opentelemetry-collector
+    namespace: monitoring
+    chart: ./charts/raw-manifests
+    values:
+      - helm-values/opentelemetry-collector.yaml
+    needs:
+      - monitoring/tempo
+
   - name: ingress-nginx
     namespace: ingress-nginx
     chart: ingress-nginx/ingress-nginx
     version: "4.11.3"
     values:
       - helm-values/nginx.yaml
+    needs:
+      - monitoring/opentelemetry-collector
 
   - name: cert-manager
     namespace: cert-manager
@@ -37,6 +53,14 @@ releases:
       - helm-values/cert-manager.yaml
     needs: 
       - ingress-nginx/ingress-nginx
+
+  - name: cluster-issuer
+    namespace: cert-manager
+    chart: ./charts/raw-manifests
+    values:
+      - helm-values/cluster-issuer.yaml
+    needs:
+      - cert-manager/cert-manager
 
   - name: external-dns
     namespace: external-dns
@@ -56,7 +80,29 @@ releases:
     needs: 
       - ingress-nginx/ingress-nginx
       - external-dns/external-dns
-      - cert-manager/cert-manager
+      - cert-manager/cluster-issuer
+
+  - name: blackbox-exporter
+    namespace: monitoring
+    chart: prometheus/prometheus-blackbox-exporter
+    values:
+      - helm-values/blackbox-exporter.yaml
+    needs:
+      - ingress-nginx/ingress-nginx
+
+  - name: loki
+    namespace: monitoring
+    chart: ./charts/raw-manifests
+    values:
+      - helm-values/loki.yaml
+
+  - name: fluent-bit
+    namespace: monitoring
+    chart: ./charts/raw-manifests
+    values:
+      - helm-values/fluent-bit.yaml
+    needs:
+      - monitoring/loki
 
   - name: prometheus
     namespace: monitoring
@@ -64,9 +110,10 @@ releases:
     values:
       - helm-values/prometheus.yaml
     needs:
+      - monitoring/blackbox-exporter
       - ingress-nginx/ingress-nginx
       - external-dns/external-dns
-      - cert-manager/cert-manager
+      - cert-manager/cluster-issuer
 
   - name: grafana
     namespace: monitoring
@@ -74,10 +121,44 @@ releases:
     values:
       - helm-values/grafana.yaml
     needs:
+      - monitoring/loki
       - monitoring/prometheus
       - ingress-nginx/ingress-nginx
       - external-dns/external-dns
-      - cert-manager/cert-manager
+      - cert-manager/cluster-issuer
+
+  - name: grafana-cloud-traces-dashboard
+    namespace: monitoring
+    chart: ./charts/raw-manifests
+    values:
+      - helm-values/grafana-cloud-traces-dashboard.yaml
+    needs:
+      - monitoring/grafana
+
+  - name: grafana-kubernetes-infra-dashboard
+    namespace: monitoring
+    chart: ./charts/raw-manifests
+    values:
+      - helm-values/kubernetes-infra-dashboard.yaml
+    needs:
+      - monitoring/grafana
+
+  - name: grafana-otel-traces-datasource
+    namespace: monitoring
+    chart: ./charts/raw-manifests
+    values:
+      - helm-values/grafana-otel-traces-datasource.yaml
+    needs:
+      - monitoring/grafana
+      - monitoring/tempo
+
+  - name: grafana-cloud-traces-datasource
+    namespace: monitoring
+    chart: ./charts/raw-manifests
+    values:
+      - helm-values/grafana-cloud-traces-datasource.yaml
+    needs:
+      - monitoring/grafana
 
   - name: postgres
     namespace: app
@@ -100,6 +181,9 @@ releases:
       - helm-values/app/api-gateway.yaml
     needs:
       - app/redis
+      - ingress-nginx/ingress-nginx
+      - external-dns/external-dns
+      - cert-manager/cluster-issuer
 
   - name: dashboard-api
     namespace: app

@@ -32,3 +32,216 @@ nodeExporter:
 
 kube-state-metrics:
   enabled: true
+
+extraScrapeConfigs: |
+  - job_name: business-http-health
+    metrics_path: /probe
+    params:
+      module:
+        - http_2xx
+    static_configs:
+      - targets:
+          - http://api-gateway.app.svc.cluster.local:8080/healthz
+        labels:
+          namespace: app
+          service: api-gateway
+          business_capability: edge
+      - targets:
+          - http://order-service.app.svc.cluster.local:8081/healthz
+        labels:
+          namespace: app
+          service: order-service
+          business_capability: orders
+      - targets:
+          - http://inventory-service.app.svc.cluster.local:8082/healthz
+        labels:
+          namespace: app
+          service: inventory-service
+          business_capability: inventory
+      - targets:
+          - http://payment-service.app.svc.cluster.local:8083/healthz
+        labels:
+          namespace: app
+          service: payment-service
+          business_capability: payments
+      - targets:
+          - http://notification-service.app.svc.cluster.local:8084/healthz
+        labels:
+          namespace: app
+          service: notification-service
+          business_capability: notifications
+      - targets:
+          - http://shipping-service.app.svc.cluster.local:8085/healthz
+        labels:
+          namespace: app
+          service: shipping-service
+          business_capability: shipping
+      - targets:
+          - http://dashboard-api.app.svc.cluster.local:8086/healthz
+        labels:
+          namespace: app
+          service: dashboard-api
+          business_capability: dashboard
+    relabel_configs:
+      - source_labels:
+          - __address__
+        target_label: __param_target
+      - source_labels:
+          - __param_target
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter.monitoring.svc.cluster.local:9115
+
+serverFiles:
+  alerting_rules.yml:
+    groups:
+      - name: node-health
+        rules:
+          - alert: KubernetesNodeNotReady
+            expr: kube_node_status_condition{condition="Ready",status="true"} == 0
+            for: 5m
+            labels:
+              severity: critical
+              scope: node
+            annotations:
+              summary: "Node {{ $labels.node }} is not ready"
+              description: "Kubernetes reports node {{ $labels.node }} as not ready for more than 5 minutes."
+
+          - alert: KubernetesNodeDiskPressure
+            expr: kube_node_status_condition{condition="DiskPressure",status="true"} == 1
+            for: 5m
+            labels:
+              severity: warning
+              scope: node
+            annotations:
+              summary: "Node {{ $labels.node }} has disk pressure"
+              description: "Kubernetes reports disk pressure on node {{ $labels.node }}."
+
+          - alert: KubernetesNodeMemoryPressure
+            expr: kube_node_status_condition{condition="MemoryPressure",status="true"} == 1
+            for: 5m
+            labels:
+              severity: warning
+              scope: node
+            annotations:
+              summary: "Node {{ $labels.node }} has memory pressure"
+              description: "Kubernetes reports memory pressure on node {{ $labels.node }}."
+
+          - alert: NodeFilesystemAlmostFull
+            expr: |
+              (
+                node_filesystem_avail_bytes{fstype!~"tmpfs|overlay",mountpoint!~"/run.*|/var/lib/kubelet/pods.*"}
+                /
+                node_filesystem_size_bytes{fstype!~"tmpfs|overlay",mountpoint!~"/run.*|/var/lib/kubelet/pods.*"}
+              ) < 0.15
+            for: 10m
+            labels:
+              severity: warning
+              scope: node
+            annotations:
+              summary: "Node filesystem is almost full on {{ $labels.instance }}"
+              description: "Filesystem {{ $labels.mountpoint }} on {{ $labels.instance }} has less than 15% free space."
+
+      - name: namespace-workload-health
+        rules:
+          - alert: NamespaceMissing
+            expr: absent(kube_namespace_created{namespace="app"}) or absent(kube_namespace_created{namespace="monitoring"})
+            for: 5m
+            labels:
+              severity: critical
+              scope: namespace
+            annotations:
+              summary: "Required namespace is missing"
+              description: "Either the app or monitoring namespace is missing from kube-state-metrics."
+
+          - alert: AppDeploymentReplicasUnavailable
+            expr: kube_deployment_status_replicas_available{namespace="app"} < kube_deployment_spec_replicas{namespace="app"}
+            for: 5m
+            labels:
+              severity: critical
+              scope: pod
+            annotations:
+              summary: "{{ $labels.deployment }} has unavailable replicas"
+              description: "Deployment {{ $labels.deployment }} in namespace {{ $labels.namespace }} has fewer available replicas than desired."
+
+          - alert: MonitoringDeploymentReplicasUnavailable
+            expr: kube_deployment_status_replicas_available{namespace="monitoring"} < kube_deployment_spec_replicas{namespace="monitoring"}
+            for: 5m
+            labels:
+              severity: warning
+              scope: pod
+            annotations:
+              summary: "{{ $labels.deployment }} has unavailable replicas"
+              description: "Monitoring deployment {{ $labels.deployment }} has fewer available replicas than desired."
+
+          - alert: PodCrashLooping
+            expr: increase(kube_pod_container_status_restarts_total{namespace=~"app|monitoring"}[10m]) > 2
+            for: 5m
+            labels:
+              severity: critical
+              scope: pod
+            annotations:
+              summary: "Pod {{ $labels.pod }} is restarting repeatedly"
+              description: "Container {{ $labels.container }} in pod {{ $labels.namespace }}/{{ $labels.pod }} restarted more than twice in 10 minutes."
+
+          - alert: PodNotReady
+            expr: kube_pod_status_ready{namespace=~"app|monitoring",condition="true"} == 0
+            for: 10m
+            labels:
+              severity: warning
+              scope: pod
+            annotations:
+              summary: "Pod {{ $labels.pod }} is not ready"
+              description: "Pod {{ $labels.namespace }}/{{ $labels.pod }} has been unready for more than 10 minutes."
+
+          - alert: PodStuckPending
+            expr: kube_pod_status_phase{namespace=~"app|monitoring",phase="Pending"} == 1
+            for: 10m
+            labels:
+              severity: warning
+              scope: pod
+            annotations:
+              summary: "Pod {{ $labels.pod }} is stuck pending"
+              description: "Pod {{ $labels.namespace }}/{{ $labels.pod }} has been pending for more than 10 minutes."
+
+      - name: business-health
+        rules:
+          - alert: BusinessHealthProbeFailed
+            expr: probe_success{job="business-http-health"} == 0
+            for: 2m
+            labels:
+              severity: critical
+              scope: business
+            annotations:
+              summary: "{{ $labels.service }} health check is failing"
+              description: "{{ $labels.business_capability }} capability is unhealthy. Probe target {{ $labels.instance }} failed for more than 2 minutes."
+
+          - alert: BusinessHealthProbeMissing
+            expr: up{job="business-http-health"} == 0
+            for: 2m
+            labels:
+              severity: critical
+              scope: business
+            annotations:
+              summary: "Prometheus cannot run business health probe for {{ $labels.service }}"
+              description: "Prometheus cannot scrape the blackbox result for {{ $labels.service }}. Check blackbox-exporter and service DNS."
+
+          - alert: CheckoutCapabilityDegraded
+            expr: count(probe_success{job="business-http-health",business_capability=~"orders|inventory|payments|shipping"} == 0) > 0
+            for: 2m
+            labels:
+              severity: critical
+              scope: business
+            annotations:
+              summary: "Checkout flow is degraded"
+              description: "At least one checkout dependency is failing: orders, inventory, payments, or shipping."
+
+          - alert: EdgeUnavailable
+            expr: probe_success{job="business-http-health",business_capability="edge"} == 0
+            for: 1m
+            labels:
+              severity: critical
+              scope: business
+            annotations:
+              summary: "API gateway is unavailable"
+              description: "The API gateway health endpoint is failing, so customer traffic may not reach backend services."

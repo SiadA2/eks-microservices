@@ -1,0 +1,168 @@
+resources:
+  - |
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: opentelemetry-collector-config
+      namespace: monitoring
+    data:
+      collector.yaml: |
+        receivers:
+          otlp:
+            protocols:
+              grpc:
+                endpoint: 0.0.0.0:4317
+              http:
+                endpoint: 0.0.0.0:4318
+        extensions:
+          health_check:
+            endpoint: 0.0.0.0:13133
+        processors:
+          memory_limiter:
+            check_interval: 1s
+            limit_mib: 384
+            spike_limit_mib: 128
+          k8sattributes:
+            auth_type: serviceAccount
+            passthrough: false
+            extract:
+              metadata:
+                - k8s.namespace.name
+                - k8s.pod.name
+                - k8s.deployment.name
+                - k8s.container.name
+          attributes/sanitize:
+            actions:
+              - key: http.request.header.authorization
+                action: delete
+              - key: http.request.header.cookie
+                action: delete
+              - key: http.request.header.set_cookie
+                action: delete
+              - key: http.request.body
+                action: delete
+              - key: http.response.body
+                action: delete
+              - key: user.email
+                action: delete
+              - key: enduser.id
+                action: delete
+              - key: enduser.email
+                action: delete
+          batch:
+            timeout: 5s
+            send_batch_size: 512
+        exporters:
+          otlp/tempo:
+            endpoint: tempo.monitoring.svc.cluster.local:4317
+            tls:
+              insecure: true
+          debug:
+            verbosity: basic
+        service:
+          extensions: [health_check]
+          pipelines:
+            traces:
+              receivers: [otlp]
+              processors: [memory_limiter, k8sattributes, attributes/sanitize, batch]
+              exporters: [otlp/tempo]
+  - |
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      name: opentelemetry-collector
+      namespace: monitoring
+  - |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      name: opentelemetry-collector
+    rules:
+      - apiGroups: [""]
+        resources: [pods, namespaces]
+        verbs: [get, watch, list]
+      - apiGroups: [apps]
+        resources: [replicasets, deployments, daemonsets, statefulsets]
+        verbs: [get, watch, list]
+  - |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+      name: opentelemetry-collector
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: opentelemetry-collector
+    subjects:
+      - kind: ServiceAccount
+        name: opentelemetry-collector
+        namespace: monitoring
+  - |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: opentelemetry-collector
+      namespace: monitoring
+      labels:
+        app: opentelemetry-collector
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app: opentelemetry-collector
+      template:
+        metadata:
+          labels:
+            app: opentelemetry-collector
+        spec:
+          serviceAccountName: opentelemetry-collector
+          containers:
+            - name: opentelemetry-collector
+              image: otel/opentelemetry-collector-contrib:0.101.0
+              imagePullPolicy: IfNotPresent
+              args:
+                - --config=/etc/otelcol/collector.yaml
+              ports:
+                - name: otlp-grpc
+                  containerPort: 4317
+                - name: otlp-http
+                  containerPort: 4318
+              readinessProbe:
+                httpGet:
+                  path: /
+                  port: 13133
+                initialDelaySeconds: 10
+                periodSeconds: 10
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                limits:
+                  cpu: 500m
+                  memory: 512Mi
+              volumeMounts:
+                - name: config
+                  mountPath: /etc/otelcol
+          volumes:
+            - name: config
+              configMap:
+                name: opentelemetry-collector-config
+  - |
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: opentelemetry-collector
+      namespace: monitoring
+      labels:
+        app: opentelemetry-collector
+    spec:
+      type: ClusterIP
+      selector:
+        app: opentelemetry-collector
+      ports:
+        - name: otlp-grpc
+          port: 4317
+          targetPort: otlp-grpc
+        - name: otlp-http
+          port: 4318
+          targetPort: otlp-http

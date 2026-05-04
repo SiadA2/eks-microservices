@@ -1,0 +1,6 @@
+{{- range $index, $resource := .Values.resources }}
+{{- if gt $index 0 }}
+---
+{{- end }}
+{{ tpl $resource $ }}
+{{- end }}

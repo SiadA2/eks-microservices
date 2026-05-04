@@ -1,0 +1,618 @@
+resources:
+  - |
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: grafana-kubernetes-infra-dashboard
+      namespace: monitoring
+      labels:
+        grafana_dashboard: "1"
+    data:
+      kubernetes-infra-capacity.json: |
+        {
+          "annotations": {
+            "list": [
+              {
+                "builtIn": 1,
+                "datasource": {
+                  "type": "grafana",
+                  "uid": "-- Grafana --"
+                },
+                "enable": true,
+                "hide": true,
+                "iconColor": "rgba(0, 211, 255, 1)",
+                "name": "Annotations & Alerts",
+                "type": "dashboard"
+              }
+            ]
+          },
+          "description": "Kubernetes infrastructure capacity dashboard for node CPU, memory, disk, pod resource usage, and pod scheduling density. Grafana remains the centralized visualizer, with Prometheus providing the metrics.",
+          "editable": true,
+          "fiscalYearStartMonth": 0,
+          "graphTooltip": 1,
+          "id": null,
+          "links": [],
+          "liveNow": false,
+          "panels": [
+            {
+              "datasource": "Prometheus",
+              "description": "Total pods currently scheduled in the selected namespace scope.",
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      { "color": "green", "value": null }
+                    ]
+                  },
+                  "unit": "short"
+                },
+                "overrides": []
+              },
+              "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+              "id": 1,
+              "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+              },
+              "pluginVersion": "12.3.1",
+              "targets": [
+                {
+                  "datasource": "Prometheus",
+                  "editorMode": "code",
+                  "expr": "sum(count by(namespace,pod)(kube_pod_info{namespace=~\"$namespace\"}))",
+                  "instant": false,
+                  "range": true,
+                  "refId": "A"
+                }
+              ],
+              "title": "Scheduled Pods",
+              "type": "stat"
+            },
+            {
+              "datasource": "Prometheus",
+              "description": "Number of Kubernetes nodes known to kube-state-metrics.",
+              "fieldConfig": {
+                "defaults": {
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      { "color": "red", "value": null },
+                      { "color": "green", "value": 1 }
+                    ]
+                  },
+                  "unit": "short"
+                },
+                "overrides": []
+              },
+              "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+              "id": 2,
+              "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+              },
+              "pluginVersion": "12.3.1",
+              "targets": [
+                {
+                  "datasource": "Prometheus",
+                  "editorMode": "code",
+                  "expr": "count(kube_node_info)",
+                  "instant": false,
+                  "range": true,
+                  "refId": "A"
+                }
+              ],
+              "title": "Cluster Nodes",
+              "type": "stat"
+            },
+            {
+              "datasource": "Prometheus",
+              "description": "Cluster-wide CPU usage from node-exporter idle CPU counters.",
+              "fieldConfig": {
+                "defaults": {
+                  "max": 100,
+                  "min": 0,
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      { "color": "green", "value": null },
+                      { "color": "yellow", "value": 70 },
+                      { "color": "red", "value": 85 }
+                    ]
+                  },
+                  "unit": "percent"
+                },
+                "overrides": []
+              },
+              "gridPos": { "h": 4, "w": 4, "x": 12, "y": 0 },
+              "id": 3,
+              "options": {
+                "colorMode": "background",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+              },
+              "pluginVersion": "12.3.1",
+              "targets": [
+                {
+                  "datasource": "Prometheus",
+                  "editorMode": "code",
+                  "expr": "100 * (1 - avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])))",
+                  "range": true,
+                  "refId": "A"
+                }
+              ],
+              "title": "Cluster CPU Used",
+              "type": "stat"
+            },
+            {
+              "datasource": "Prometheus",
+              "description": "Cluster-wide memory usage from node-exporter available/total memory.",
+              "fieldConfig": {
+                "defaults": {
+                  "max": 100,
+                  "min": 0,
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      { "color": "green", "value": null },
+                      { "color": "yellow", "value": 70 },
+                      { "color": "red", "value": 85 }
+                    ]
+                  },
+                  "unit": "percent"
+                },
+                "overrides": []
+              },
+              "gridPos": { "h": 4, "w": 4, "x": 16, "y": 0 },
+              "id": 4,
+              "options": {
+                "colorMode": "background",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+              },
+              "pluginVersion": "12.3.1",
+              "targets": [
+                {
+                  "datasource": "Prometheus",
+                  "editorMode": "code",
+                  "expr": "100 * (1 - (sum(node_memory_MemAvailable_bytes) / sum(node_memory_MemTotal_bytes)))",
+                  "range": true,
+                  "refId": "A"
+                }
+              ],
+              "title": "Cluster Memory Used",
+              "type": "stat"
+            },
+            {
+              "datasource": "Prometheus",
+              "description": "Cluster-wide non-ephemeral filesystem usage from node-exporter.",
+              "fieldConfig": {
+                "defaults": {
+                  "max": 100,
+                  "min": 0,
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      { "color": "green", "value": null },
+                      { "color": "yellow", "value": 70 },
+                      { "color": "red", "value": 85 }
+                    ]
+                  },
+                  "unit": "percent"
+                },
+                "overrides": []
+              },
+              "gridPos": { "h": 4, "w": 4, "x": 20, "y": 0 },
+              "id": 5,
+              "options": {
+                "colorMode": "background",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+              },
+              "pluginVersion": "12.3.1",
+              "targets": [
+                {
+                  "datasource": "Prometheus",
+                  "editorMode": "code",
+                  "expr": "100 * (1 - (sum(node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay\",mountpoint!~\"/run.*|/var/lib/kubelet/pods.*\"}) / sum(node_filesystem_size_bytes{fstype!~\"tmpfs|overlay\",mountpoint!~\"/run.*|/var/lib/kubelet/pods.*\"})))",
+                  "range": true,
+                  "refId": "A"
+                }
+              ],
+              "title": "Cluster Disk Used",
+              "type": "stat"
+            },
+            {
+              "datasource": "Prometheus",
+              "description": "CPU usage by node. A rising line means the node is doing more work.",
+              "fieldConfig": {
+                "defaults": {
+                  "custom": { "drawStyle": "line", "fillOpacity": 12, "lineInterpolation": "linear", "lineWidth": 2, "showPoints": "never", "spanNulls": false },
+                  "max": 100,
+                  "min": 0,
+                  "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 70 }, { "color": "red", "value": 85 } ] },
+                  "unit": "percent"
+                },
+                "overrides": []
+              },
+              "gridPos": { "h": 8, "w": 8, "x": 0, "y": 4 },
+              "id": 6,
+              "options": { "legend": { "calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+              "pluginVersion": "12.3.1",
+              "targets": [
+                {
+                  "datasource": "Prometheus",
+                  "editorMode": "code",
+                  "expr": "100 * (1 - avg by(instance)(rate(node_cpu_seconds_total{mode=\"idle\",instance=~\"$node\"}[5m])))",
+                  "range": true,
+                  "refId": "A"
+                }
+              ],
+              "title": "Node CPU Used",
+              "type": "timeseries"
+            },
+            {
+              "datasource": "Prometheus",
+              "description": "Memory pressure by node.",
+              "fieldConfig": {
+                "defaults": {
+                  "custom": { "drawStyle": "line", "fillOpacity": 12, "lineInterpolation": "linear", "lineWidth": 2, "showPoints": "never", "spanNulls": false },
+                  "max": 100,
+                  "min": 0,
+                  "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 70 }, { "color": "red", "value": 85 } ] },
+                  "unit": "percent"
+                },
+                "overrides": []
+              },
+              "gridPos": { "h": 8, "w": 8, "x": 8, "y": 4 },
+              "id": 7,
+              "options": { "legend": { "calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+              "pluginVersion": "12.3.1",
+              "targets": [
+                {
+                  "datasource": "Prometheus",
+                  "editorMode": "code",
+                  "expr": "100 * (1 - (node_memory_MemAvailable_bytes{instance=~\"$node\"} / node_memory_MemTotal_bytes{instance=~\"$node\"}))",
+                  "range": true,
+                  "refId": "A"
+                }
+              ],
+              "title": "Node Memory Used",
+              "type": "timeseries"
+            },
+            {
+              "datasource": "Prometheus",
+              "description": "Filesystem usage by node and mountpoint, excluding tmpfs, overlay, and noisy kubelet pod mounts.",
+              "fieldConfig": {
+                "defaults": {
+                  "custom": { "drawStyle": "line", "fillOpacity": 12, "lineInterpolation": "linear", "lineWidth": 2, "showPoints": "never", "spanNulls": false },
+                  "max": 100,
+                  "min": 0,
+                  "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 70 }, { "color": "red", "value": 85 } ] },
+                  "unit": "percent"
+                },
+                "overrides": []
+              },
+              "gridPos": { "h": 8, "w": 8, "x": 16, "y": 4 },
+              "id": 8,
+              "options": { "legend": { "calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+              "pluginVersion": "12.3.1",
+              "targets": [
+                {
+                  "datasource": "Prometheus",
+                  "editorMode": "code",
+                  "expr": "100 * (1 - (node_filesystem_avail_bytes{instance=~\"$node\",fstype!~\"tmpfs|overlay\",mountpoint!~\"/run.*|/var/lib/kubelet/pods.*\"} / node_filesystem_size_bytes{instance=~\"$node\",fstype!~\"tmpfs|overlay\",mountpoint!~\"/run.*|/var/lib/kubelet/pods.*\"}))",
+                  "range": true,
+                  "refId": "A"
+                }
+              ],
+              "title": "Node Disk Used",
+              "type": "timeseries"
+            },
+            {
+              "datasource": "Prometheus",
+              "description": "This is the scheduling pressure view: if a node is much higher than the others, pods are not balanced evenly.",
+              "fieldConfig": {
+                "defaults": {
+                  "color": { "mode": "palette-classic" },
+                  "custom": { "axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "pods", "axisPlacement": "auto", "barAlignment": 0, "drawStyle": "bars", "fillOpacity": 70, "gradientMode": "none", "hideFrom": { "legend": false, "tooltip": false, "viz": false }, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "scaleDistribution": { "type": "linear" }, "showPoints": "never", "spanNulls": false, "stacking": { "group": "A", "mode": "none" }, "thresholdsStyle": { "mode": "off" } },
+                  "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null } ] },
+                  "unit": "short"
+                },
+                "overrides": []
+              },
+              "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+              "id": 9,
+              "options": { "legend": { "calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+              "pluginVersion": "12.3.1",
+              "targets": [
+                {
+                  "datasource": "Prometheus",
+                  "editorMode": "code",
+                  "expr": "count by(node)(kube_pod_info{node!=\"\",namespace=~\"$namespace\"})",
+                  "range": true,
+                  "refId": "A"
+                }
+              ],
+              "title": "Pods Scheduled Per Node",
+              "type": "timeseries"
+            },
+            {
+              "datasource": "Prometheus",
+              "description": "Percentage of each node's pod capacity currently consumed by scheduled pods.",
+              "fieldConfig": {
+                "defaults": {
+                  "custom": { "drawStyle": "line", "fillOpacity": 18, "lineInterpolation": "linear", "lineWidth": 2, "showPoints": "never", "spanNulls": false },
+                  "max": 100,
+                  "min": 0,
+                  "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 70 }, { "color": "red", "value": 85 } ] },
+                  "unit": "percent"
+                },
+                "overrides": []
+              },
+              "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+              "id": 10,
+              "options": { "legend": { "calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+              "pluginVersion": "12.3.1",
+              "targets": [
+                {
+                  "datasource": "Prometheus",
+                  "editorMode": "code",
+                  "expr": "100 * count by(node)(kube_pod_info{node!=\"\",namespace=~\"$namespace\"}) / max by(node)(kube_node_status_capacity{resource=\"pods\"})",
+                  "range": true,
+                  "refId": "A"
+                }
+              ],
+              "title": "Node Pod Density Used",
+              "type": "timeseries"
+            },
+            {
+              "datasource": "Prometheus",
+              "description": "Highest CPU-consuming pods in the selected namespace scope.",
+              "fieldConfig": {
+                "defaults": {
+                  "color": { "mode": "palette-classic" },
+                  "custom": { "align": "auto", "cellOptions": { "type": "auto" }, "inspect": false },
+                  "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null } ] },
+                  "unit": "cores"
+                },
+                "overrides": []
+              },
+              "gridPos": { "h": 8, "w": 8, "x": 0, "y": 20 },
+              "id": 11,
+              "options": { "cellHeight": "sm", "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false }, "showHeader": true },
+              "pluginVersion": "12.3.1",
+              "targets": [
+                {
+                  "datasource": "Prometheus",
+                  "editorMode": "code",
+                  "expr": "topk(15, sum by(namespace,pod)(rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\",container!=\"\",pod!=\"\"}[5m])))",
+                  "format": "table",
+                  "instant": true,
+                  "range": false,
+                  "refId": "A"
+                }
+              ],
+              "title": "Top Pods By CPU",
+              "type": "table"
+            },
+            {
+              "datasource": "Prometheus",
+              "description": "Highest memory-consuming pods in the selected namespace scope.",
+              "fieldConfig": {
+                "defaults": {
+                  "color": { "mode": "palette-classic" },
+                  "custom": { "align": "auto", "cellOptions": { "type": "auto" }, "inspect": false },
+                  "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null } ] },
+                  "unit": "bytes"
+                },
+                "overrides": []
+              },
+              "gridPos": { "h": 8, "w": 8, "x": 8, "y": 20 },
+              "id": 12,
+              "options": { "cellHeight": "sm", "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false }, "showHeader": true },
+              "pluginVersion": "12.3.1",
+              "targets": [
+                {
+                  "datasource": "Prometheus",
+                  "editorMode": "code",
+                  "expr": "topk(15, sum by(namespace,pod)(container_memory_working_set_bytes{namespace=~\"$namespace\",container!=\"\",pod!=\"\"}))",
+                  "format": "table",
+                  "instant": true,
+                  "range": false,
+                  "refId": "A"
+                }
+              ],
+              "title": "Top Pods By Memory",
+              "type": "table"
+            },
+            {
+              "datasource": "Prometheus",
+              "description": "Highest container filesystem usage grouped by pod. This depends on cAdvisor/container filesystem metrics being present.",
+              "fieldConfig": {
+                "defaults": {
+                  "color": { "mode": "palette-classic" },
+                  "custom": { "align": "auto", "cellOptions": { "type": "auto" }, "inspect": false },
+                  "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null } ] },
+                  "unit": "bytes"
+                },
+                "overrides": []
+              },
+              "gridPos": { "h": 8, "w": 8, "x": 16, "y": 20 },
+              "id": 13,
+              "options": { "cellHeight": "sm", "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false }, "showHeader": true },
+              "pluginVersion": "12.3.1",
+              "targets": [
+                {
+                  "datasource": "Prometheus",
+                  "editorMode": "code",
+                  "expr": "topk(15, sum by(namespace,pod)(container_fs_usage_bytes{namespace=~\"$namespace\",container!=\"\",pod!=\"\"}))",
+                  "format": "table",
+                  "instant": true,
+                  "range": false,
+                  "refId": "A"
+                }
+              ],
+              "title": "Top Pods By Disk",
+              "type": "table"
+            },
+            {
+              "datasource": "Prometheus",
+              "description": "Container restarts in the last hour. Use this to spot noisy workloads causing infra churn.",
+              "fieldConfig": {
+                "defaults": {
+                  "color": { "mode": "thresholds" },
+                  "custom": { "align": "auto", "cellOptions": { "type": "auto" }, "inspect": false },
+                  "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 1 }, { "color": "red", "value": 3 } ] },
+                  "unit": "short"
+                },
+                "overrides": []
+              },
+              "gridPos": { "h": 7, "w": 12, "x": 0, "y": 28 },
+              "id": 14,
+              "options": { "cellHeight": "sm", "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false }, "showHeader": true },
+              "pluginVersion": "12.3.1",
+              "targets": [
+                {
+                  "datasource": "Prometheus",
+                  "editorMode": "code",
+                  "expr": "sum by(namespace,pod,container)(increase(kube_pod_container_status_restarts_total{namespace=~\"$namespace\"}[1h])) > 0",
+                  "format": "table",
+                  "instant": true,
+                  "range": false,
+                  "refId": "A"
+                }
+              ],
+              "title": "Pod Restarts Last 1h",
+              "type": "table"
+            },
+            {
+              "datasource": "Prometheus",
+              "description": "Node readiness and pressure conditions from kube-state-metrics.",
+              "fieldConfig": {
+                "defaults": {
+                  "color": { "mode": "thresholds" },
+                  "custom": { "align": "auto", "cellOptions": { "type": "auto" }, "inspect": false },
+                  "mappings": [
+                    { "options": { "0": { "color": "green", "text": "false" }, "1": { "color": "red", "text": "true" } }, "type": "value" }
+                  ],
+                  "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] },
+                  "unit": "short"
+                },
+                "overrides": []
+              },
+              "gridPos": { "h": 7, "w": 12, "x": 12, "y": 28 },
+              "id": 15,
+              "options": { "cellHeight": "sm", "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false }, "showHeader": true },
+              "pluginVersion": "12.3.1",
+              "targets": [
+                {
+                  "datasource": "Prometheus",
+                  "editorMode": "code",
+                  "expr": "kube_node_status_condition{condition=~\"DiskPressure|MemoryPressure|PIDPressure\",status=\"true\",node=~\"$node_name\"}",
+                  "format": "table",
+                  "instant": true,
+                  "range": false,
+                  "refId": "A"
+                }
+              ],
+              "title": "Node Pressure Conditions",
+              "type": "table"
+            }
+          ],
+          "refresh": "30s",
+          "schemaVersion": 41,
+          "tags": ["infra", "kubernetes", "nodes", "pods", "observability"],
+          "templating": {
+            "list": [
+              {
+                "current": { "selected": false, "text": ".*", "value": ".*" },
+                "datasource": "Prometheus",
+                "definition": "label_values(kube_pod_info, namespace)",
+                "hide": 0,
+                "includeAll": true,
+                "label": "Namespace",
+                "multi": true,
+                "name": "namespace",
+                "options": [],
+                "query": { "query": "label_values(kube_pod_info, namespace)", "refId": "PrometheusVariableQueryEditor-VariableQuery" },
+                "refresh": 1,
+                "regex": "",
+                "skipUrlSync": false,
+                "sort": 1,
+                "type": "query"
+              },
+              {
+                "current": { "selected": false, "text": ".*", "value": ".*" },
+                "datasource": "Prometheus",
+                "definition": "label_values(node_cpu_seconds_total, instance)",
+                "hide": 0,
+                "includeAll": true,
+                "label": "Node instance",
+                "multi": true,
+                "name": "node",
+                "options": [],
+                "query": { "query": "label_values(node_cpu_seconds_total, instance)", "refId": "PrometheusVariableQueryEditor-VariableQuery" },
+                "refresh": 1,
+                "regex": "",
+                "skipUrlSync": false,
+                "sort": 1,
+                "type": "query"
+              },
+              {
+                "current": { "selected": false, "text": ".*", "value": ".*" },
+                "datasource": "Prometheus",
+                "definition": "label_values(kube_node_info, node)",
+                "hide": 0,
+                "includeAll": true,
+                "label": "Node name",
+                "multi": true,
+                "name": "node_name",
+                "options": [],
+                "query": { "query": "label_values(kube_node_info, node)", "refId": "PrometheusVariableQueryEditor-VariableQuery" },
+                "refresh": 1,
+                "regex": "",
+                "skipUrlSync": false,
+                "sort": 1,
+                "type": "query"
+              }
+            ]
+          },
+          "time": { "from": "now-6h", "to": "now" },
+          "timepicker": {},
+          "timezone": "browser",
+          "title": "Kubernetes Infrastructure Capacity",
+          "uid": "kubernetes-infra-capacity",
+          "version": 1,
+          "weekStart": ""
+        }

@@ -25,9 +25,28 @@ sidecar:
   dashboards:
     enabled: true
     label: grafana_dashboard
+    provider:
+      folder: Observability
   datasources:
     enabled: true
     label: grafana_datasource
+
+envValueFrom:
+  GRAFANA_CLOUD_TRACES_URL:
+    secretKeyRef:
+      name: grafana-cloud-traces
+      key: url
+      optional: true
+  GRAFANA_CLOUD_TRACES_USERNAME:
+    secretKeyRef:
+      name: grafana-cloud-traces
+      key: username
+      optional: true
+  GRAFANA_CLOUD_TRACES_PASSWORD:
+    secretKeyRef:
+      name: grafana-cloud-traces
+      key: password
+      optional: true
 
 datasources:
   datasources.yaml:
@@ -38,5 +57,1039 @@ datasources:
         access: proxy
         url: http://prometheus-server.monitoring.svc.cluster.local
         isDefault: true
+
+      - name: Loki
+        type: loki
+        access: proxy
+        url: http://loki.monitoring.svc.cluster.local:3100
+        isDefault: false
+
+dashboardProviders:
+  dashboardproviders.yaml:
+    apiVersion: 1
+    providers:
+      - name: observability
+        orgId: 1
+        folder: Observability
+        type: file
+        disableDeletion: false
+        editable: true
+        options:
+          path: /var/lib/grafana/dashboards/observability
+
+dashboards:
+  observability:
+    platform-business-overview:
+      json: |
+        {
+          "annotations": {
+            "list": [
+              {
+                "builtIn": 1,
+                "datasource": {
+                  "type": "grafana",
+                  "uid": "-- Grafana --"
+                },
+                "enable": true,
+                "hide": true,
+                "iconColor": "rgba(0, 211, 255, 1)",
+                "name": "Annotations & Alerts",
+                "type": "dashboard"
+              }
+            ]
+          },
+          "editable": true,
+          "fiscalYearStartMonth": 0,
+          "graphTooltip": 1,
+          "id": null,
+          "links": [],
+          "liveNow": false,
+          "panels": [
+            {
+              "datasource": "Prometheus",
+              "description": "Current /healthz probe state for each business-facing service.",
+              "fieldConfig": {
+                "defaults": {
+                  "mappings": [
+                    {
+                      "options": {
+                        "0": {
+                          "color": "red",
+                          "text": "DOWN"
+                        },
+                        "1": {
+                          "color": "green",
+                          "text": "UP"
+                        }
+                      },
+                      "type": "value"
+                    }
+                  ],
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "red",
+                        "value": null
+                      },
+                      {
+                        "color": "green",
+                        "value": 1
+                      }
+                    ]
+                  }
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 5,
+                "w": 8,
+                "x": 0,
+                "y": 0
+              },
+              "id": 1,
+              "options": {
+                "colorMode": "background",
+                "graphMode": "area",
+                "justifyMode": "center",
+                "orientation": "auto",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+              },
+              "pluginVersion": "12.3.1",
+              "targets": [
+                {
+                  "datasource": "Prometheus",
+                  "editorMode": "code",
+                  "expr": "probe_success{job=\"business-http-health\",service=~\"$service\"}",
+                  "legendFormat": "{{ service }}",
+                  "range": true,
+                  "refId": "A"
+                }
+              ],
+              "title": "Business Service Health",
+              "type": "stat"
+            },
+            {
+              "datasource": "Prometheus",
+              "description": "A time-based availability view. 1 means healthy, 0 means unhealthy.",
+              "fieldConfig": {
+                "defaults": {
+                  "custom": {
+                    "drawStyle": "line",
+                    "fillOpacity": 20,
+                    "lineInterpolation": "stepAfter",
+                    "lineWidth": 1,
+                    "showPoints": "never",
+                    "spanNulls": false
+                  },
+                  "max": 1,
+                  "min": 0,
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "red",
+                        "value": null
+                      },
+                      {
+                        "color": "green",
+                        "value": 1
+                      }
+                    ]
+                  },
+                  "unit": "bool_on_off"
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 8,
+                "w": 16,
+                "x": 8,
+                "y": 0
+              },
+              "id": 2,
+              "options": {
+                "legend": {
+                  "calcs": [
+                    "lastNotNull",
+                    "min"
+                  ],
+                  "displayMode": "table",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "mode": "multi",
+                  "sort": "none"
+                }
+              },
+              "targets": [
+                {
+                  "datasource": "Prometheus",
+                  "editorMode": "code",
+                  "expr": "probe_success{job=\"business-http-health\",service=~\"$service\"}",
+                  "legendFormat": "{{ service }}",
+                  "range": true,
+                  "refId": "A"
+                }
+              ],
+              "title": "Business Availability Over Time",
+              "type": "timeseries"
+            },
+            {
+              "datasource": "Prometheus",
+              "description": "Slow health checks usually show a service under stress before it fully fails.",
+              "fieldConfig": {
+                "defaults": {
+                  "custom": {
+                    "drawStyle": "line",
+                    "fillOpacity": 10,
+                    "lineWidth": 1,
+                    "showPoints": "never"
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "orange",
+                        "value": 1
+                      },
+                      {
+                        "color": "red",
+                        "value": 3
+                      }
+                    ]
+                  },
+                  "unit": "s"
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 7,
+                "w": 12,
+                "x": 0,
+                "y": 8
+              },
+              "id": 3,
+              "options": {
+                "legend": {
+                  "calcs": [
+                    "lastNotNull",
+                    "max"
+                  ],
+                  "displayMode": "table",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "mode": "multi",
+                  "sort": "desc"
+                }
+              },
+              "targets": [
+                {
+                  "datasource": "Prometheus",
+                  "editorMode": "code",
+                  "expr": "probe_duration_seconds{job=\"business-http-health\",service=~\"$service\"}",
+                  "legendFormat": "{{ service }}",
+                  "range": true,
+                  "refId": "A"
+                }
+              ],
+              "title": "Health Probe Latency",
+              "type": "timeseries"
+            },
+            {
+              "datasource": "Prometheus",
+              "description": "Firing Prometheus alerts grouped by alert name.",
+              "fieldConfig": {
+                "defaults": {
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "red",
+                        "value": 1
+                      }
+                    ]
+                  },
+                  "unit": "short"
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 7,
+                "w": 12,
+                "x": 12,
+                "y": 8
+              },
+              "id": 4,
+              "options": {
+                "legend": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "displayMode": "table",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "mode": "multi",
+                  "sort": "desc"
+                }
+              },
+              "targets": [
+                {
+                  "datasource": "Prometheus",
+                  "editorMode": "code",
+                  "expr": "sum by (alertname, severity, scope) (ALERTS{alertstate=\"firing\"})",
+                  "legendFormat": "{{ alertname }} / {{ severity }} / {{ scope }}",
+                  "range": true,
+                  "refId": "A"
+                }
+              ],
+              "title": "Firing Alerts Over Time",
+              "type": "timeseries"
+            },
+            {
+              "datasource": "Prometheus",
+              "description": "Compares desired replicas with available replicas for selected namespaces.",
+              "fieldConfig": {
+                "defaults": {
+                  "custom": {
+                    "drawStyle": "line",
+                    "fillOpacity": 10,
+                    "lineWidth": 1,
+                    "showPoints": "never"
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      }
+                    ]
+                  },
+                  "unit": "short"
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 15
+              },
+              "id": 5,
+              "options": {
+                "legend": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "displayMode": "table",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "mode": "multi",
+                  "sort": "none"
+                }
+              },
+              "targets": [
+                {
+                  "datasource": "Prometheus",
+                  "editorMode": "code",
+                  "expr": "kube_deployment_status_replicas_available{namespace=~\"$namespace\"}",
+                  "legendFormat": "available {{ namespace }}/{{ deployment }}",
+                  "range": true,
+                  "refId": "A"
+                },
+                {
+                  "datasource": "Prometheus",
+                  "editorMode": "code",
+                  "expr": "kube_deployment_spec_replicas{namespace=~\"$namespace\"}",
+                  "legendFormat": "desired {{ namespace }}/{{ deployment }}",
+                  "range": true,
+                  "refId": "B"
+                }
+              ],
+              "title": "Deployment Desired vs Available Replicas",
+              "type": "timeseries"
+            },
+            {
+              "datasource": "Prometheus",
+              "description": "Container restarts by pod. Spikes here usually point to crashes, failed dependencies, or bad config.",
+              "fieldConfig": {
+                "defaults": {
+                  "custom": {
+                    "drawStyle": "bars",
+                    "fillOpacity": 60,
+                    "lineWidth": 1,
+                    "showPoints": "never"
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "orange",
+                        "value": 1
+                      },
+                      {
+                        "color": "red",
+                        "value": 3
+                      }
+                    ]
+                  },
+                  "unit": "short"
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 15
+              },
+              "id": 6,
+              "options": {
+                "legend": {
+                  "calcs": [
+                    "lastNotNull",
+                    "max"
+                  ],
+                  "displayMode": "table",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "mode": "multi",
+                  "sort": "desc"
+                }
+              },
+              "targets": [
+                {
+                  "datasource": "Prometheus",
+                  "editorMode": "code",
+                  "expr": "sum by (namespace, pod, container) (increase(kube_pod_container_status_restarts_total{namespace=~\"$namespace\"}[15m]))",
+                  "legendFormat": "{{ namespace }}/{{ pod }}/{{ container }}",
+                  "range": true,
+                  "refId": "A"
+                }
+              ],
+              "title": "Pod Restarts Per 15m",
+              "type": "timeseries"
+            },
+            {
+              "datasource": "Prometheus",
+              "description": "Unready pods by namespace.",
+              "fieldConfig": {
+                "defaults": {
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "red",
+                        "value": 1
+                      }
+                    ]
+                  },
+                  "unit": "short"
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 5,
+                "w": 8,
+                "x": 0,
+                "y": 23
+              },
+              "id": 7,
+              "options": {
+                "colorMode": "background",
+                "graphMode": "area",
+                "justifyMode": "center",
+                "orientation": "auto",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+              },
+              "pluginVersion": "12.3.1",
+              "targets": [
+                {
+                  "datasource": "Prometheus",
+                  "editorMode": "code",
+                  "expr": "sum by (namespace) (kube_pod_status_ready{namespace=~\"$namespace\",condition=\"true\"} == 0)",
+                  "legendFormat": "{{ namespace }}",
+                  "range": true,
+                  "refId": "A"
+                }
+              ],
+              "title": "Unready Pods Now",
+              "type": "stat"
+            },
+            {
+              "datasource": "Prometheus",
+              "description": "Node readiness over time. Healthy nodes should stay at 1.",
+              "fieldConfig": {
+                "defaults": {
+                  "custom": {
+                    "drawStyle": "line",
+                    "fillOpacity": 15,
+                    "lineInterpolation": "stepAfter",
+                    "lineWidth": 1,
+                    "showPoints": "never"
+                  },
+                  "max": 1,
+                  "min": 0,
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "red",
+                        "value": null
+                      },
+                      {
+                        "color": "green",
+                        "value": 1
+                      }
+                    ]
+                  },
+                  "unit": "bool_on_off"
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 7,
+                "w": 16,
+                "x": 8,
+                "y": 23
+              },
+              "id": 8,
+              "options": {
+                "legend": {
+                  "calcs": [
+                    "lastNotNull",
+                    "min"
+                  ],
+                  "displayMode": "table",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "mode": "multi",
+                  "sort": "none"
+                }
+              },
+              "targets": [
+                {
+                  "datasource": "Prometheus",
+                  "editorMode": "code",
+                  "expr": "kube_node_status_condition{condition=\"Ready\",status=\"true\",node=~\"$node\"}",
+                  "legendFormat": "{{ node }}",
+                  "range": true,
+                  "refId": "A"
+                }
+              ],
+              "title": "Node Ready State",
+              "type": "timeseries"
+            },
+            {
+              "datasource": "Loki",
+              "description": "Recent application logs from Loki for the selected namespaces.",
+              "gridPos": {
+                "h": 10,
+                "w": 24,
+                "x": 0,
+                "y": 38
+              },
+              "id": 10,
+              "options": {
+                "dedupStrategy": "none",
+                "enableLogDetails": true,
+                "prettifyLogMessage": true,
+                "showCommonLabels": false,
+                "showLabels": true,
+                "showTime": true,
+                "sortOrder": "Descending",
+                "wrapLogMessage": true
+              },
+              "targets": [
+                {
+                  "datasource": "Loki",
+                  "editorMode": "code",
+                  "expr": "{namespace=~\"$namespace\"}",
+                  "queryType": "range",
+                  "refId": "A"
+                }
+              ],
+              "title": "Application Logs",
+              "type": "logs"
+            },
+            {
+              "datasource": "Prometheus",
+              "description": "Free filesystem percentage for node filesystems. Sustained drops below 15% match the Prometheus alert.",
+              "fieldConfig": {
+                "defaults": {
+                  "custom": {
+                    "drawStyle": "line",
+                    "fillOpacity": 10,
+                    "lineWidth": 1,
+                    "showPoints": "never"
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "red",
+                        "value": null
+                      },
+                      {
+                        "color": "orange",
+                        "value": 15
+                      },
+                      {
+                        "color": "green",
+                        "value": 30
+                      }
+                    ]
+                  },
+                  "unit": "percent"
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 8,
+                "w": 24,
+                "x": 0,
+                "y": 48
+              },
+              "id": 9,
+              "options": {
+                "legend": {
+                  "calcs": [
+                    "lastNotNull",
+                    "min"
+                  ],
+                  "displayMode": "table",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "mode": "multi",
+                  "sort": "asc"
+                }
+              },
+              "targets": [
+                {
+                  "datasource": "Prometheus",
+                  "editorMode": "code",
+                  "expr": "100 * node_filesystem_avail_bytes{instance=~\"$node.*\",fstype!~\"tmpfs|overlay\",mountpoint!~\"/run.*|/var/lib/kubelet/pods.*\"} / node_filesystem_size_bytes{instance=~\"$node.*\",fstype!~\"tmpfs|overlay\",mountpoint!~\"/run.*|/var/lib/kubelet/pods.*\"}",
+                  "legendFormat": "{{ instance }} {{ mountpoint }}",
+                  "range": true,
+                  "refId": "A"
+                }
+              ],
+              "title": "Node Filesystem Free %",
+              "type": "timeseries"
+            }
+          ],
+          "refresh": "30s",
+          "schemaVersion": 42,
+          "tags": [
+            "observability",
+            "business",
+            "kubernetes"
+          ],
+          "templating": {
+            "list": [
+              {
+                "current": {
+                  "selected": true,
+                  "text": "All",
+                  "value": "$__all"
+                },
+                "datasource": "Prometheus",
+                "definition": "label_values(probe_success{job=\"business-http-health\"}, service)",
+                "hide": 0,
+                "includeAll": true,
+                "label": "Service",
+                "multi": true,
+                "name": "service",
+                "options": [],
+                "query": {
+                  "query": "label_values(probe_success{job=\"business-http-health\"}, service)",
+                  "refId": "StandardVariableQuery"
+                },
+                "refresh": 1,
+                "regex": "",
+                "sort": 1,
+                "type": "query"
+              },
+              {
+                "current": {
+                  "selected": true,
+                  "text": "app + monitoring",
+                  "value": "app|monitoring"
+                },
+                "hide": 0,
+                "includeAll": false,
+                "label": "Namespace",
+                "multi": false,
+                "name": "namespace",
+                "options": [
+                  {
+                    "selected": true,
+                    "text": "app + monitoring",
+                    "value": "app|monitoring"
+                  },
+                  {
+                    "selected": false,
+                    "text": "app",
+                    "value": "app"
+                  },
+                  {
+                    "selected": false,
+                    "text": "monitoring",
+                    "value": "monitoring"
+                  }
+                ],
+                "query": "app + monitoring : app|monitoring, app : app, monitoring : monitoring",
+                "type": "custom"
+              },
+              {
+                "current": {
+                  "selected": true,
+                  "text": "All",
+                  "value": "$__all"
+                },
+                "datasource": "Prometheus",
+                "definition": "label_values(kube_node_status_condition{condition=\"Ready\"}, node)",
+                "hide": 0,
+                "includeAll": true,
+                "label": "Node",
+                "multi": true,
+                "name": "node",
+                "options": [],
+                "query": {
+                  "query": "label_values(kube_node_status_condition{condition=\"Ready\"}, node)",
+                  "refId": "StandardVariableQuery"
+                },
+                "refresh": 1,
+                "regex": "",
+                "sort": 1,
+                "type": "query"
+              }
+            ]
+          },
+          "time": {
+            "from": "now-6h",
+            "to": "now"
+          },
+          "timepicker": {
+            "refresh_intervals": [
+              "10s",
+              "30s",
+              "1m",
+              "5m",
+              "15m"
+            ]
+          },
+          "timezone": "browser",
+          "title": "Platform and Business Observability",
+          "uid": "platform-business-observability",
+          "version": 1,
+          "weekStart": ""
+        }
+
+    logs-overview:
+      json: |
+        {
+          "annotations": {
+            "list": [
+              {
+                "builtIn": 1,
+                "datasource": {
+                  "type": "grafana",
+                  "uid": "-- Grafana --"
+                },
+                "enable": true,
+                "hide": true,
+                "iconColor": "rgba(0, 211, 255, 1)",
+                "name": "Annotations & Alerts",
+                "type": "dashboard"
+              }
+            ]
+          },
+          "editable": true,
+          "fiscalYearStartMonth": 0,
+          "graphTooltip": 1,
+          "id": null,
+          "links": [],
+          "liveNow": false,
+          "panels": [
+            {
+              "datasource": "Loki",
+              "description": "Recent logs from business-facing services. Structured business events appear here after order, payment, inventory, or shipping workflows run.",
+              "fieldConfig": {
+                "defaults": {
+                  "custom": {
+                    "displayMode": "auto"
+                  }
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 12,
+                "w": 24,
+                "x": 0,
+                "y": 0
+              },
+              "id": 1,
+              "options": {
+                "dedupStrategy": "none",
+                "enableLogDetails": true,
+                "prettifyLogMessage": false,
+                "showCommonLabels": false,
+                "showLabels": false,
+                "showTime": true,
+                "sortOrder": "Descending",
+                "wrapLogMessage": true
+              },
+              "targets": [
+                {
+                  "datasource": "Loki",
+                  "editorMode": "code",
+                  "expr": "{service_name=~\"api-gateway|dashboard-api|order-service|payment-service|inventory-service|shipping-service|notification-service|scheduler|worker\"} | json | line_format \"{{.log}}\"",
+                  "queryType": "range",
+                  "refId": "A"
+                }
+              ],
+              "title": "Recent Business Service Logs",
+              "type": "logs"
+            },
+            {
+              "datasource": "Loki",
+              "description": "Recent order-service logs. Order lifecycle event fields are parsed when the service emits structured JSON.",
+              "fieldConfig": {
+                "defaults": {
+                  "custom": {
+                    "displayMode": "auto"
+                  }
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 12
+              },
+              "id": 2,
+              "options": {
+                "dedupStrategy": "none",
+                "enableLogDetails": true,
+                "prettifyLogMessage": false,
+                "showCommonLabels": false,
+                "showLabels": false,
+                "showTime": true,
+                "sortOrder": "Descending",
+                "wrapLogMessage": true
+              },
+              "targets": [
+                {
+                  "datasource": "Loki",
+                  "editorMode": "code",
+                  "expr": "{service_name=\"order-service\"} | json | line_format \"{{.log}}\"",
+                  "queryType": "range",
+                  "refId": "A"
+                }
+              ],
+              "title": "Order Service Logs",
+              "type": "logs"
+            },
+            {
+              "datasource": "Loki",
+              "description": "Recent payment-service logs. Payment event fields are parsed when payment traffic exists.",
+              "fieldConfig": {
+                "defaults": {
+                  "custom": {
+                    "displayMode": "auto"
+                  }
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 12
+              },
+              "id": 3,
+              "options": {
+                "dedupStrategy": "none",
+                "enableLogDetails": true,
+                "prettifyLogMessage": false,
+                "showCommonLabels": false,
+                "showLabels": false,
+                "showTime": true,
+                "sortOrder": "Descending",
+                "wrapLogMessage": true
+              },
+              "targets": [
+                {
+                  "datasource": "Loki",
+                  "editorMode": "code",
+                  "expr": "{service_name=\"payment-service\"} | json | line_format \"{{.log}}\"",
+                  "queryType": "range",
+                  "refId": "A"
+                }
+              ],
+              "title": "Payment Service Logs",
+              "type": "logs"
+            },
+            {
+              "datasource": "Loki",
+              "description": "Recent inventory-service logs. Reservation events appear here when inventory workflows run.",
+              "fieldConfig": {
+                "defaults": {
+                  "custom": {
+                    "displayMode": "auto"
+                  }
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 20
+              },
+              "id": 4,
+              "options": {
+                "dedupStrategy": "none",
+                "enableLogDetails": true,
+                "prettifyLogMessage": false,
+                "showCommonLabels": false,
+                "showLabels": false,
+                "showTime": true,
+                "sortOrder": "Descending",
+                "wrapLogMessage": true
+              },
+              "targets": [
+                {
+                  "datasource": "Loki",
+                  "editorMode": "code",
+                  "expr": "{service_name=\"inventory-service\"} | json | line_format \"{{.log}}\"",
+                  "queryType": "range",
+                  "refId": "A"
+                }
+              ],
+              "title": "Inventory Service Logs",
+              "type": "logs"
+            },
+            {
+              "datasource": "Loki",
+              "description": "Recent shipping-service logs. Shipment events appear here when shipping workflows run.",
+              "fieldConfig": {
+                "defaults": {
+                  "custom": {
+                    "displayMode": "auto"
+                  }
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 20
+              },
+              "id": 5,
+              "options": {
+                "dedupStrategy": "none",
+                "enableLogDetails": true,
+                "prettifyLogMessage": false,
+                "showCommonLabels": false,
+                "showLabels": false,
+                "showTime": true,
+                "sortOrder": "Descending",
+                "wrapLogMessage": true
+              },
+              "targets": [
+                {
+                  "datasource": "Loki",
+                  "editorMode": "code",
+                  "expr": "{service_name=\"shipping-service\"} | json | line_format \"{{.log}}\"",
+                  "queryType": "range",
+                  "refId": "A"
+                }
+              ],
+              "title": "Shipping Service Logs",
+              "type": "logs"
+            }
+          ],
+          "refresh": "30s",
+          "schemaVersion": 38,
+          "style": "dark",
+          "tags": [
+            "logs",
+            "business",
+            "observability"
+          ],
+          "templating": {
+            "list": []
+          },
+          "time": {
+            "from": "now-1h",
+            "to": "now"
+          },
+          "timepicker": {
+            "refresh_intervals": [
+              "10s",
+              "30s",
+              "1m",
+              "5m",
+              "15m"
+            ]
+          },
+          "timezone": "browser",
+          "title": "Business Logs Overview",
+          "uid": "business-logs-overview",
+          "version": 1,
+          "weekStart": ""
+        }
 
 resources: {}
