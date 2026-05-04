@@ -1,5 +1,12 @@
 fullnameOverride: postgres
 
+global:
+  security:
+    allowInsecureImages: true
+
+image:
+  repository: bitnamilegacy/postgresql
+
 auth:
   username: app
   password: localdev

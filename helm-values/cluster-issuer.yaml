@@ -1,0 +1,17 @@
+resources:
+  - |
+    apiVersion: cert-manager.io/v1
+    kind: ClusterIssuer
+    metadata:
+      name: issuer
+    spec:
+      acme:
+        server: https://acme-v02.api.letsencrypt.org/directory
+        email: admin@5hort.site
+        privateKeySecretRef:
+          name: issuer-account-key
+        solvers:
+          - dns01:
+              route53:
+                region: eu-west-2
+                hostedZoneID: Z03520233UBPTHEEWV0OJ

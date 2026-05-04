@@ -1,0 +1,40 @@
+resources:
+  - |
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: grafana-cloud-traces-datasource
+      namespace: monitoring
+      labels:
+        grafana_datasource: "1"
+    data:
+      grafana-cloud-traces.yaml: |
+        apiVersion: 1
+        datasources:
+          - name: Grafana Cloud Traces
+            uid: grafana-cloud-traces
+            type: tempo
+            access: proxy
+            url: ${GRAFANA_CLOUD_TRACES_URL}
+            basicAuth: true
+            basicAuthUser: ${GRAFANA_CLOUD_TRACES_USERNAME}
+            editable: true
+            jsonData:
+              httpMethod: GET
+              nodeGraph:
+                enabled: true
+              serviceMap:
+                datasourceUid: PBFA97CFB590B2093
+              tracesToLogsV2:
+                datasourceUid: P8E80F9AEF21F6940
+                filterBySpanID: false
+                filterByTraceID: true
+                tags:
+                  - key: service.name
+                    value: service_name
+                  - key: k8s.namespace.name
+                    value: namespace
+                customQuery: true
+                query: '{service_name=~"$${__tags}"} | json | line_format "{{ `{{.log}}` }}"'
+            secureJsonData:
+              basicAuthPassword: ${GRAFANA_CLOUD_TRACES_PASSWORD}

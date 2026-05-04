@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	_ "github.com/lib/pq"
 )
 
@@ -50,6 +51,10 @@ var validTransitions = map[string][]string{
 }
 
 func main() {
+	// Setup structured logging
+	logrus.SetFormatter(&logrus.JSONFormatter{})
+	logrus.SetLevel(logrus.InfoLevel)
+
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
 		log.Fatal("DATABASE_URL is required")
@@ -58,6 +63,12 @@ func main() {
 	var err error
 	db, err = sql.Open("postgres", dbURL)
 	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"service": "order-service",
+			"level":   "high",
+			"event":   "db_connection_failure",
+			"error":   err.Error(),
+		}).Error("Failed to connect to database")
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 	defer db.Close()
@@ -75,7 +86,12 @@ func main() {
 	mux.HandleFunc("/status", handleUpdateStatus)
 
 	port := getEnv("PORT", "8081")
-	log.Printf("Order service listening on :%s", port)
+	logrus.WithFields(logrus.Fields{
+		"service": "order-service",
+		"level":   "low",
+		"event":   "service_startup",
+		"port":    port,
+	}).Info("Order service started")
 	log.Fatal(http.ListenAndServe(":"+port, mux))
 }
 
@@ -180,7 +196,14 @@ func createOrder(w http.ResponseWriter, r *http.Request) {
 	).Scan(&orderID)
 
 	if err != nil {
-		log.Printf("Create order error: %v", err)
+		logrus.WithFields(logrus.Fields{
+			"service":     "order-service",
+			"level":       "high",
+			"event":       "order_creation_failed",
+			"customer_id": customerID,
+			"error":       err.Error(),
+			"action":      "Check database connectivity and retry order creation",
+		}).Error("Failed to create order in database")
 		httpError(w, "failed to create order", http.StatusInternalServerError)
 		return
 	}
@@ -200,6 +223,18 @@ func createOrder(w http.ResponseWriter, r *http.Request) {
 		"total":       total,
 		"currency":    currency,
 	})
+
+	logrus.WithFields(logrus.Fields{
+		"service":     "order-service",
+		"level":       "high",
+		"event":       "order_created",
+		"order_id":    orderID,
+		"customer_id": customerID,
+		"total":       total,
+		"currency":    currency,
+		"item_count":  len(req.Items),
+		"action":      "Monitor inventory reservation and payment processing",
+	}).Info("Order successfully created")
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -311,6 +346,16 @@ func handleUpdateStatus(w http.ResponseWriter, r *http.Request) {
 		req.NewStatus, req.OrderID,
 	)
 	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"service":     "order-service",
+			"level":       "high",
+			"event":       "order_status_update_failed",
+			"order_id":    req.OrderID,
+			"old_status":  currentStatus,
+			"new_status":  req.NewStatus,
+			"error":       err.Error(),
+			"action":      "Check database connectivity and retry status update",
+		}).Error("Failed to update order status in database")
 		httpError(w, "failed to update order", http.StatusInternalServerError)
 		return
 	}
@@ -328,6 +373,16 @@ func handleUpdateStatus(w http.ResponseWriter, r *http.Request) {
 		"old_status": currentStatus,
 		"new_status": req.NewStatus,
 	})
+
+	logrus.WithFields(logrus.Fields{
+		"service":     "order-service",
+		"level":       "high",
+		"event":       "order_status_changed",
+		"order_id":    req.OrderID,
+		"old_status":  currentStatus,
+		"new_status":  req.NewStatus,
+		"action":      "Notify customer and trigger downstream processes like shipping",
+	}).Info("Order status successfully updated")
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{

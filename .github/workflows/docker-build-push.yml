@@ -22,7 +22,7 @@ env:
 
 jobs:
   build-check-push:
-    name: Build, Checkov, Push
+    name: Build, Checkov, Grype, Push
     runs-on: ubuntu-latest
     environment: dev
     strategy:
@@ -74,18 +74,35 @@ jobs:
         with:
           context: services/${{ matrix.service }}
           push: false
+          load: true
           tags: eks-microservices/${{ matrix.service }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Build and push image
+      - name: Build image for push
         if: github.event_name != 'pull_request'
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
         with:
           context: services/${{ matrix.service }}
-          push: true
+          push: false
+          load: true
           tags: |
             ${{ steps.aws.outputs.account_id }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ENVIRONMENT }}-${{ matrix.service }}:${{ github.sha }}
             ${{ steps.aws.outputs.account_id }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ENVIRONMENT }}-${{ matrix.service }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Grype image vulnerability scan
+        uses: anchore/scan-action@e1165082ffb1fe366ebaf02d8526e7c4989ea9d2
+        with:
+          image: ${{ github.event_name == 'pull_request' && format('eks-microservices/{0}:{1}', matrix.service, github.sha) || format('{0}.dkr.ecr.{1}.amazonaws.com/{2}-{3}:{4}', steps.aws.outputs.account_id, env.AWS_REGION, env.ENVIRONMENT, matrix.service, github.sha) }}
+          fail-build: true
+          severity-cutoff: high
+
+      - name: Push image
+        if: github.event_name != 'pull_request'
+        env:
+          ECR_REPOSITORY: ${{ steps.aws.outputs.account_id }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ENVIRONMENT }}-${{ matrix.service }}
+        run: |
+          docker push "${ECR_REPOSITORY}:${GITHUB_SHA}"
+          docker push "${ECR_REPOSITORY}:latest"

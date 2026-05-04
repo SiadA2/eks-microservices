@@ -1,10 +1,6 @@
 resource "aws_ecr_repository" "repo" {
   name                 = var.repo_name
   image_tag_mutability = "MUTABLE"
-
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 resource "aws_ecr_lifecycle_policy" "untagged" {

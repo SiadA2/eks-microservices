@@ -11,12 +11,17 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	_ "github.com/lib/pq"
 )
 
 var db *sql.DB
 
 func main() {
+	// Setup structured logging
+	logrus.SetFormatter(&logrus.JSONFormatter{})
+	logrus.SetLevel(logrus.InfoLevel)
+
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
 		log.Fatal("DATABASE_URL is required")
@@ -25,6 +30,12 @@ func main() {
 	var err error
 	db, err = sql.Open("postgres", dbURL)
 	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"service": "payment-service",
+			"level":   "high",
+			"event":   "db_connection_failure",
+			"error":   err.Error(),
+		}).Error("Failed to connect to database")
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 	defer db.Close()
@@ -42,7 +53,12 @@ func main() {
 	mux.HandleFunc("/balance/", handleBalance)
 
 	port := getEnv("PORT", "8083")
-	log.Printf("Payment service listening on :%s", port)
+	logrus.WithFields(logrus.Fields{
+		"service": "payment-service",
+		"level":   "low",
+		"event":   "service_startup",
+		"port":    port,
+	}).Info("Payment service started")
 	log.Fatal(http.ListenAndServe(":"+port, mux))
 }
 
@@ -169,6 +185,35 @@ func handleCharge(w http.ResponseWriter, r *http.Request) {
 		"currency":    currency,
 		"status":      status,
 	})
+
+	if status == "completed" {
+		logrus.WithFields(logrus.Fields{
+			"service":     "payment-service",
+			"level":       "high",
+			"event":       "payment_charge_success",
+			"payment_id":  paymentID,
+			"order_id":    req.OrderID,
+			"customer_id": req.CustomerID,
+			"amount":      req.Amount,
+			"currency":    currency,
+			"method":      req.Method,
+			"action":      "Update order status to confirmed and notify customer",
+		}).Info("Payment charge successfully processed")
+	} else {
+		logrus.WithFields(logrus.Fields{
+			"service":     "payment-service",
+			"level":       "high",
+			"event":       "payment_charge_failed",
+			"payment_id":  paymentID,
+			"order_id":    req.OrderID,
+			"customer_id": req.CustomerID,
+			"amount":      req.Amount,
+			"currency":    currency,
+			"method":      req.Method,
+			"reason":      "Simulated payment failure",
+			"action":      "Retry payment or notify customer of failure",
+		}).Error("Payment charge failed")
+	}
 
 	code := http.StatusCreated
 	if status == "failed" {

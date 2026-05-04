@@ -11,12 +11,17 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	_ "github.com/lib/pq"
 )
 
 var db *sql.DB
 
 func main() {
+	// Setup structured logging
+	logrus.SetFormatter(&logrus.JSONFormatter{})
+	logrus.SetLevel(logrus.InfoLevel)
+
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
 		log.Fatal("DATABASE_URL is required")
@@ -25,6 +30,12 @@ func main() {
 	var err error
 	db, err = sql.Open("postgres", dbURL)
 	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"service": "shipping-service",
+			"level":   "high",
+			"event":   "db_connection_failure",
+			"error":   err.Error(),
+		}).Error("Failed to connect to database")
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 	defer db.Close()
@@ -42,7 +53,12 @@ func main() {
 	mux.HandleFunc("/webhook", handleCarrierWebhook)
 
 	port := getEnv("PORT", "8085")
-	log.Printf("Shipping service listening on :%s", port)
+	logrus.WithFields(logrus.Fields{
+		"service": "shipping-service",
+		"level":   "low",
+		"event":   "service_startup",
+		"port":    port,
+	}).Info("Shipping service started")
 	log.Fatal(http.ListenAndServe(":"+port, mux))
 }
 
@@ -196,6 +212,14 @@ func createShipment(w http.ResponseWriter, r *http.Request) {
 	).Scan(&shipmentID)
 
 	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"service":   "shipping-service",
+			"level":     "high",
+			"event":     "shipment_creation_failed",
+			"order_id":  req.OrderID,
+			"error":     err.Error(),
+			"action":    "Check database connectivity and retry shipment creation",
+		}).Error("Failed to create shipment in database")
 		httpError(w, "failed to create shipment", http.StatusInternalServerError)
 		return
 	}
@@ -213,6 +237,19 @@ func createShipment(w http.ResponseWriter, r *http.Request) {
 		"tracking_number": trackingNumber,
 		"carrier":         carrier,
 	})
+
+	logrus.WithFields(logrus.Fields{
+		"service":           "shipping-service",
+		"level":             "high",
+		"event":             "shipment_created",
+		"shipment_id":       shipmentID,
+		"order_id":          req.OrderID,
+		"tracking_number":   trackingNumber,
+		"carrier":           carrier,
+		"recipient_name":    req.RecipientName,
+		"estimated_delivery": estimatedDelivery.Format("2006-01-02"),
+		"action":            "Notify customer with tracking details and monitor delivery",
+	}).Info("Shipment successfully created")
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)

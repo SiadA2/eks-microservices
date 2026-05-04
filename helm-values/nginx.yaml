@@ -1,4 +1,13 @@
 controller:
+  config:
+    enable-opentelemetry: "true"
+    otel-sampler: AlwaysOn
+    otel-sampler-ratio: "1.0"
+    otel-service-name: ingress-nginx
+    otlp-collector-host: opentelemetry-collector.monitoring.svc.cluster.local
+    otlp-collector-port: "4317"
+    log-format-upstream: >-
+      {"time":"$time_iso8601","request_id":"$req_id","trace_id":"$opentelemetry_trace_id","span_id":"$opentelemetry_span_id","host":"$host","method":"$request_method","uri":"$uri","status":$status,"bytes_sent":$bytes_sent,"request_time":$request_time,"upstream_response_time":"$upstream_response_time","namespace":"$namespace","ingress":"$ingress_name","service":"$service_name","service_port":"$service_port"}
   healthCheckPath: /nginx-healthz
   livenessProbe:
     httpGet:

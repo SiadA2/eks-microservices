@@ -1,0 +1,38 @@
+resources:
+  - |
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: grafana-otel-traces-datasource
+      namespace: monitoring
+      labels:
+        grafana_datasource: "1"
+    data:
+      otel-tempo.yaml: |
+        apiVersion: 1
+        datasources:
+          - name: OpenTelemetry Traces
+            uid: otel-tempo
+            type: tempo
+            access: proxy
+            url: http://tempo.monitoring.svc.cluster.local:3200
+            editable: true
+            jsonData:
+              httpMethod: GET
+              nodeGraph:
+                enabled: true
+              serviceMap:
+                datasourceUid: PBFA97CFB590B2093
+              tracesToLogsV2:
+                datasourceUid: P8E80F9AEF21F6940
+                filterBySpanID: false
+                filterByTraceID: true
+                spanStartTimeShift: -5m
+                spanEndTimeShift: 5m
+                tags:
+                  - key: service.name
+                    value: service_name
+                  - key: k8s.namespace.name
+                    value: namespace
+                customQuery: true
+                query: '{namespace=~"ingress-nginx|app"} | json | line_format "{{ `{{.log}}` }}" |~ "trace_id|$${__trace.traceId}"'

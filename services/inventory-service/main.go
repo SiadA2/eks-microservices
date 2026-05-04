@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	_ "github.com/lib/pq"
 )
 
@@ -38,6 +39,10 @@ type Reservation struct {
 }
 
 func main() {
+	// Setup structured logging
+	logrus.SetFormatter(&logrus.JSONFormatter{})
+	logrus.SetLevel(logrus.InfoLevel)
+
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
 		log.Fatal("DATABASE_URL is required")
@@ -46,6 +51,12 @@ func main() {
 	var err error
 	db, err = sql.Open("postgres", dbURL)
 	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"service": "inventory-service",
+			"level":   "high",
+			"event":   "db_connection_failure",
+			"error":   err.Error(),
+		}).Error("Failed to connect to database")
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 	defer db.Close()
@@ -64,7 +75,12 @@ func main() {
 	mux.HandleFunc("/low-stock", handleLowStock)
 
 	port := getEnv("PORT", "8082")
-	log.Printf("Inventory service listening on :%s", port)
+	logrus.WithFields(logrus.Fields{
+		"service": "inventory-service",
+		"level":   "low",
+		"event":   "service_startup",
+		"port":    port,
+	}).Info("Inventory service started")
 	log.Fatal(http.ListenAndServe(":"+port, mux))
 }
 
@@ -244,9 +260,27 @@ func handleReserve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := tx.Commit(); err != nil {
+		logrus.WithFields(logrus.Fields{
+			"service":   "inventory-service",
+			"level":     "high",
+			"event":     "inventory_reservation_failed",
+			"order_id":  req.OrderID,
+			"error":     err.Error(),
+			"action":    "Check database connectivity and retry reservation",
+		}).Error("Failed to commit inventory reservation")
 		httpError(w, "reservation failed", http.StatusInternalServerError)
 		return
 	}
+
+	logrus.WithFields(logrus.Fields{
+		"service":   "inventory-service",
+		"level":     "high",
+		"event":     "inventory_reserved",
+		"order_id":  req.OrderID,
+		"item_count": len(req.Items),
+		"expires_at": expiresAt.Format(time.RFC3339),
+		"action":    "Monitor reservation expiry and ensure payment completion",
+	}).Info("Inventory successfully reserved for order")
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)

@@ -1,0 +1,443 @@
+resources:
+  - |
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: grafana-cloud-business-traces-dashboard
+      namespace: monitoring
+      labels:
+        grafana_dashboard: "1"
+    data:
+      business-critical-traces.json: |
+        {
+          "annotations": {
+            "list": [
+              {
+                "builtIn": 1,
+                "datasource": {
+                  "type": "grafana",
+                  "uid": "-- Grafana --"
+                },
+                "enable": true,
+                "hide": true,
+                "iconColor": "rgba(0, 211, 255, 1)",
+                "name": "Annotations & Alerts",
+                "type": "dashboard"
+              }
+            ]
+          },
+          "description": "Business-critical OpenTelemetry traces visualized centrally in Grafana. This defaults to the in-cluster Tempo datasource fed by the OpenTelemetry Collector and can be switched to Grafana Cloud Tempo later.",
+          "editable": true,
+          "fiscalYearStartMonth": 0,
+          "graphTooltip": 1,
+          "id": null,
+          "links": [
+            {
+              "asDropdown": false,
+              "icon": "external link",
+              "includeVars": true,
+              "keepTime": true,
+              "tags": [],
+              "targetBlank": true,
+              "title": "Open Tempo Explore",
+              "type": "link",
+              "url": "/explore?left={\"datasource\":\"${trace_ds}\",\"queries\":[{\"query\":\"{ resource.service.name =~ \\\"${service}\\\" }\",\"queryType\":\"traceql\"}],\"range\":{\"from\":\"now-1h\",\"to\":\"now\"}}"
+            }
+          ],
+          "liveNow": false,
+          "panels": [
+            {
+              "datasource": {
+                "type": "tempo",
+                "uid": "${trace_ds}"
+              },
+              "description": "All traces for the business service selection. Use this when you need the complete request path across API gateway, orders, inventory, payments, and shipping.",
+              "fieldConfig": {
+                "defaults": {
+                  "custom": {
+                    "align": "auto",
+                    "cellOptions": {
+                      "type": "auto"
+                    },
+                    "inspect": false
+                  }
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 9,
+                "w": 24,
+                "x": 0,
+                "y": 0
+              },
+              "id": 1,
+              "options": {
+                "cellHeight": "sm",
+                "footer": {
+                  "countRows": false,
+                  "fields": "",
+                  "reducer": [
+                    "sum"
+                  ],
+                  "show": false
+                },
+                "showHeader": true
+              },
+              "pluginVersion": "12.3.1",
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "tempo",
+                    "uid": "${trace_ds}"
+                  },
+                  "limit": 50,
+                  "query": "{ resource.service.name =~ \"$service\" }",
+                  "queryType": "traceql",
+                  "refId": "A",
+                  "tableType": "traces"
+                }
+              ],
+              "title": "Business-Critical Traces",
+              "type": "table"
+            },
+            {
+              "datasource": {
+                "type": "tempo",
+                "uid": "${trace_ds}"
+              },
+              "description": "Failed traces or spans with HTTP 5xx status codes across business-critical paths.",
+              "fieldConfig": {
+                "defaults": {
+                  "custom": {
+                    "align": "auto",
+                    "cellOptions": {
+                      "type": "auto"
+                    },
+                    "inspect": false
+                  }
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 9
+              },
+              "id": 2,
+              "options": {
+                "cellHeight": "sm",
+                "footer": {
+                  "countRows": false,
+                  "fields": "",
+                  "reducer": [
+                    "sum"
+                  ],
+                  "show": false
+                },
+                "showHeader": true
+              },
+              "pluginVersion": "12.3.1",
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "tempo",
+                    "uid": "${trace_ds}"
+                  },
+                  "limit": 50,
+                  "query": "{ resource.service.name =~ \"$service\" && (status = error || span.http.status_code >= 500) }",
+                  "queryType": "traceql",
+                  "refId": "A",
+                  "tableType": "traces"
+                }
+              ],
+              "title": "Failed Business Traces",
+              "type": "table"
+            },
+            {
+              "datasource": {
+                "type": "tempo",
+                "uid": "${trace_ds}"
+              },
+              "description": "Slow request traces. Tune the threshold variable when normal latency changes.",
+              "fieldConfig": {
+                "defaults": {
+                  "custom": {
+                    "align": "auto",
+                    "cellOptions": {
+                      "type": "auto"
+                    },
+                    "inspect": false
+                  }
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 9
+              },
+              "id": 3,
+              "options": {
+                "cellHeight": "sm",
+                "footer": {
+                  "countRows": false,
+                  "fields": "",
+                  "reducer": [
+                    "sum"
+                  ],
+                  "show": false
+                },
+                "showHeader": true
+              },
+              "pluginVersion": "12.3.1",
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "tempo",
+                    "uid": "${trace_ds}"
+                  },
+                  "limit": 50,
+                  "query": "{ resource.service.name =~ \"$service\" && duration > $slow_threshold }",
+                  "queryType": "traceql",
+                  "refId": "A",
+                  "tableType": "traces"
+                }
+              ],
+              "title": "Slow Business Traces",
+              "type": "table"
+            },
+            {
+              "datasource": {
+                "type": "tempo",
+                "uid": "${trace_ds}"
+              },
+              "description": "Checkout and order lifecycle paths. With ingress tracing enabled, this captures edge request spans immediately; add app SDK instrumentation later for full service-to-service spans.",
+              "fieldConfig": {
+                "defaults": {
+                  "custom": {
+                    "align": "auto",
+                    "cellOptions": {
+                      "type": "auto"
+                    },
+                    "inspect": false
+                  }
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 8,
+                "w": 24,
+                "x": 0,
+                "y": 17
+              },
+              "id": 4,
+              "options": {
+                "cellHeight": "sm",
+                "footer": {
+                  "countRows": false,
+                  "fields": "",
+                  "reducer": [
+                    "sum"
+                  ],
+                  "show": false
+                },
+                "showHeader": true
+              },
+              "pluginVersion": "12.3.1",
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "tempo",
+                    "uid": "${trace_ds}"
+                  },
+                  "limit": 50,
+                  "query": "{ resource.service.name =~ \"ingress-nginx|api-gateway|order-service|inventory-service|payment-service|shipping-service\" }",
+                  "queryType": "traceql",
+                  "refId": "A",
+                  "tableType": "traces"
+                }
+              ],
+              "title": "Checkout / Order Path Traces",
+              "type": "table"
+            },
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "P8E80F9AEF21F6940"
+              },
+              "description": "Recent business logs next to traces, useful while services are still being instrumented for OpenTelemetry.",
+              "gridPos": {
+                "h": 8,
+                "w": 24,
+                "x": 0,
+                "y": 25
+              },
+              "id": 5,
+              "options": {
+                "dedupStrategy": "none",
+                "enableLogDetails": true,
+                "prettifyLogMessage": true,
+                "showCommonLabels": false,
+                "showLabels": true,
+                "showTime": true,
+                "sortOrder": "Descending",
+                "wrapLogMessage": true
+              },
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "loki",
+                    "uid": "P8E80F9AEF21F6940"
+                  },
+                  "editorMode": "code",
+                  "expr": "{service_name=~\"ingress-nginx|api-gateway|order-service|inventory-service|payment-service|shipping-service|dashboard-api|worker|scheduler\"} | json | line_format \"{{ `{{.log}}` }}\"",
+                  "queryType": "range",
+                  "refId": "A"
+                }
+              ],
+              "title": "Correlated Business Logs",
+              "type": "logs"
+            },
+            {
+              "datasource": {
+                "type": "grafana",
+                "uid": "-- Grafana --"
+              },
+              "description": "Setup guidance for this dashboard.",
+              "gridPos": {
+                "h": 5,
+                "w": 24,
+                "x": 0,
+                "y": 33
+              },
+              "id": 6,
+              "options": {
+                "code": {
+                  "language": "plaintext",
+                  "showLineNumbers": false,
+                  "showMiniMap": false
+                },
+                "content": "This dashboard uses Grafana as the central visualizer. OpenTelemetry Collector receives OTLP traces, sanitizes sensitive attributes, exports traces to Tempo, and Grafana connects traces to Loki logs. Current traces come from ingress-nginx; add OpenTelemetry SDK instrumentation to the Go services for full service-to-service traces.",
+                "mode": "markdown"
+              },
+              "pluginVersion": "12.3.1",
+              "title": "Trace Data Requirements",
+              "type": "text"
+            }
+          ],
+          "refresh": "30s",
+          "schemaVersion": 38,
+          "style": "dark",
+          "tags": [
+            "business",
+            "traces",
+            "grafana-cloud",
+            "tempo",
+            "observability"
+          ],
+          "templating": {
+            "list": [
+              {
+                "current": {
+                  "selected": false,
+                  "text": "OpenTelemetry Traces",
+                  "value": "otel-tempo"
+                },
+                "hide": 0,
+                "includeAll": false,
+                "label": "Trace datasource",
+                "multi": false,
+                "name": "trace_ds",
+                "options": [],
+                "query": "tempo",
+                "refresh": 1,
+                "regex": "",
+                "skipUrlSync": false,
+                "type": "datasource"
+              },
+              {
+                "current": {
+                  "selected": false,
+                  "text": "ingress-nginx|api-gateway|order-service|inventory-service|payment-service|shipping-service",
+                  "value": "ingress-nginx|api-gateway|order-service|inventory-service|payment-service|shipping-service"
+                },
+                "hide": 0,
+                "includeAll": false,
+                "label": "Business services regex",
+                "multi": false,
+                "name": "service",
+                "options": [
+                  {
+                    "selected": true,
+                    "text": "Critical path",
+                    "value": "ingress-nginx|api-gateway|order-service|inventory-service|payment-service|shipping-service"
+                  },
+                  {
+                    "selected": false,
+                    "text": "All business services",
+                    "value": "api-gateway|dashboard-api|order-service|inventory-service|payment-service|shipping-service|notification-service|scheduler|worker"
+                  },
+                  {
+                    "selected": false,
+                    "text": "Checkout services",
+                    "value": "order-service|inventory-service|payment-service|shipping-service"
+                  }
+                ],
+                "query": "Critical path : ingress-nginx|api-gateway|order-service|inventory-service|payment-service|shipping-service,All business services : ingress-nginx|api-gateway|dashboard-api|order-service|inventory-service|payment-service|shipping-service|notification-service|scheduler|worker,Checkout services : ingress-nginx|order-service|inventory-service|payment-service|shipping-service",
+                "skipUrlSync": false,
+                "type": "custom"
+              },
+              {
+                "current": {
+                  "selected": false,
+                  "text": "1s",
+                  "value": "1s"
+                },
+                "hide": 0,
+                "includeAll": false,
+                "label": "Slow threshold",
+                "multi": false,
+                "name": "slow_threshold",
+                "options": [
+                  {
+                    "selected": true,
+                    "text": "1s",
+                    "value": "1s"
+                  },
+                  {
+                    "selected": false,
+                    "text": "2s",
+                    "value": "2s"
+                  },
+                  {
+                    "selected": false,
+                    "text": "5s",
+                    "value": "5s"
+                  }
+                ],
+                "query": "1s,2s,5s",
+                "skipUrlSync": false,
+                "type": "custom"
+              }
+            ]
+          },
+          "time": {
+            "from": "now-1h",
+            "to": "now"
+          },
+          "timepicker": {
+            "refresh_intervals": [
+              "10s",
+              "30s",
+              "1m",
+              "5m"
+            ]
+          },
+          "timezone": "browser",
+          "title": "Business Critical Traces - OpenTelemetry",
+          "uid": "business-critical-traces-gcloud",
+          "version": 1,
+          "weekStart": ""
+        }

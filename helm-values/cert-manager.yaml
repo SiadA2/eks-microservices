@@ -1,5 +1,9 @@
 crds:
   enabled: true
+
+serviceAccount:
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::338235305910:role/dev-eks-microservices-cert-manager-route53
   
 extraArgs:
 - --dns01-recursive-nameservers="8.8.8.8:53"
